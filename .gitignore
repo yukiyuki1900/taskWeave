@@ -1,0 +1,9 @@
+node_modules/
+.taskweave/
+.demo/
+.cache/
+.env
+.env.*
+!.env.example
+coverage/
+*.tgz
