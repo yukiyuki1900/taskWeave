@@ -1,0 +1,14 @@
+{
+  "name": "@taskweave/evaluation",
+  "version": "0.3.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@taskweave/core": "0.3.0-alpha.1",
+    "@taskweave/adapters": "0.3.0-alpha.1"
+  }
+}

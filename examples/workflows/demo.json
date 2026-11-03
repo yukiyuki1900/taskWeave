@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "name": "离线工作流：需求 → 实现 → 测试 → 文档",
+  "nodes": [
+    {
+      "id": "requirements",
+      "kind": "requirements",
+      "goal": "整理团队待办应用需求",
+      "dependsOn": []
+    },
+    {
+      "id": "implementation",
+      "kind": "code",
+      "goal": "演示核心逻辑交付",
+      "dependsOn": [
+        "requirements"
+      ]
+    },
+    {
+      "id": "tests",
+      "kind": "tests",
+      "goal": "演示测试计划交付",
+      "dependsOn": [
+        "implementation"
+      ]
+    },
+    {
+      "id": "documentation",
+      "kind": "document",
+      "goal": "演示最终文档交付",
+      "dependsOn": [
+        "tests"
+      ]
+    }
+  ]
+}

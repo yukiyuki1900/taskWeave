@@ -1,0 +1,616 @@
+{
+  "version": 1,
+  "name": "TaskWeave v0.2 baseline: 20 small tasks",
+  "config": {
+    "version": 1,
+    "checks": {
+      "verify-add": {
+        "command": "node",
+        "args": [
+          "--input-type=module",
+          "-e",
+          "import assert from \"node:assert/strict\";const m=await import(\"./answer.mjs\");assert.equal(m.add(2,3),5);assert.equal(m.add(-2,2),0);assert.equal(m.add(0,0),0)"
+        ],
+        "timeoutMs": 10000
+      },
+      "verify-trim": {
+        "command": "node",
+        "args": [
+          "--input-type=module",
+          "-e",
+          "import assert from \"node:assert/strict\";const m=await import(\"./answer.mjs\");assert.equal(m.normalizeTitle(\"  a   b  \"),\"a b\");assert.equal(m.normalizeTitle(\"\"),\"\");assert.equal(m.normalizeTitle(\" x\\ny \"),\"x y\")"
+        ],
+        "timeoutMs": 10000
+      },
+      "verify-clamp": {
+        "command": "node",
+        "args": [
+          "--input-type=module",
+          "-e",
+          "import assert from \"node:assert/strict\";const m=await import(\"./answer.mjs\");assert.equal(m.clamp(-1,0,10),0);assert.equal(m.clamp(11,0,10),10);assert.equal(m.clamp(5,0,10),5)"
+        ],
+        "timeoutMs": 10000
+      },
+      "verify-unique": {
+        "command": "node",
+        "args": [
+          "--input-type=module",
+          "-e",
+          "import assert from \"node:assert/strict\";const m=await import(\"./answer.mjs\");assert.deepEqual(m.unique([3,1,3,2,1]),[3,1,2]);assert.deepEqual(m.unique([]),[]);assert.deepEqual(m.unique([0,0]),[0])"
+        ],
+        "timeoutMs": 10000
+      },
+      "verify-divide": {
+        "command": "node",
+        "args": [
+          "--input-type=module",
+          "-e",
+          "import assert from \"node:assert/strict\";const m=await import(\"./answer.mjs\");assert.equal(m.safeDivide(6,3),2);assert.equal(m.safeDivide(1,0),null);assert.equal(m.safeDivide(0,2),0)"
+        ],
+        "timeoutMs": 10000
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "requirements-todo",
+      "kind": "requirements",
+      "goal": "读取 brief.md，将需求写入 spec.json。顶层必须包含 scope、stories、rules、acceptance 四个字段，内容必须覆盖“负责人”。说明假设，最终回答注明产物位置。",
+      "files": {
+        "brief.md": "团队待办：负责人、截止时间、状态"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "json_fields",
+            "path": "spec.json",
+            "fields": [
+              "scope",
+              "stories",
+              "rules",
+              "acceptance"
+            ]
+          },
+          {
+            "type": "contains",
+            "path": "spec.json",
+            "text": "负责人"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "requirements-booking",
+      "kind": "requirements",
+      "goal": "读取 brief.md，将需求写入 spec.json。顶层必须包含 scope、stories、rules、acceptance 四个字段，内容必须覆盖“冲突”。说明假设，最终回答注明产物位置。",
+      "files": {
+        "brief.md": "会议室预约：时间冲突、取消预约"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "json_fields",
+            "path": "spec.json",
+            "fields": [
+              "scope",
+              "stories",
+              "rules",
+              "acceptance"
+            ]
+          },
+          {
+            "type": "contains",
+            "path": "spec.json",
+            "text": "冲突"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "requirements-upload",
+      "kind": "requirements",
+      "goal": "读取 brief.md，将需求写入 spec.json。顶层必须包含 scope、stories、rules、acceptance 四个字段，内容必须覆盖“大小”。说明假设，最终回答注明产物位置。",
+      "files": {
+        "brief.md": "文件上传：类型限制、大小限制、失败重试"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "json_fields",
+            "path": "spec.json",
+            "fields": [
+              "scope",
+              "stories",
+              "rules",
+              "acceptance"
+            ]
+          },
+          {
+            "type": "contains",
+            "path": "spec.json",
+            "text": "大小"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "requirements-roles",
+      "kind": "requirements",
+      "goal": "读取 brief.md，将需求写入 spec.json。顶层必须包含 scope、stories、rules、acceptance 四个字段，内容必须覆盖“只读”。说明假设，最终回答注明产物位置。",
+      "files": {
+        "brief.md": "项目权限：管理员、编辑者、只读成员"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "json_fields",
+            "path": "spec.json",
+            "fields": [
+              "scope",
+              "stories",
+              "rules",
+              "acceptance"
+            ]
+          },
+          {
+            "type": "contains",
+            "path": "spec.json",
+            "text": "只读"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "requirements-notifications",
+      "kind": "requirements",
+      "goal": "读取 brief.md，将需求写入 spec.json。顶层必须包含 scope、stories、rules、acceptance 四个字段，内容必须覆盖“退订”。说明假设，最终回答注明产物位置。",
+      "files": {
+        "brief.md": "通知设置：订阅、退订、失败重试"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "json_fields",
+            "path": "spec.json",
+            "fields": [
+              "scope",
+              "stories",
+              "rules",
+              "acceptance"
+            ]
+          },
+          {
+            "type": "contains",
+            "path": "spec.json",
+            "text": "退订"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "tests-login",
+      "kind": "tests",
+      "goal": "读取 brief.md，生成 plan.md 测试计划，必须包含“正常”“异常”“预期”“未执行”和“限流”。每条用例描述前置条件、操作和预期结果；本任务只设计测试，不声称执行过。",
+      "files": {
+        "brief.md": "登录：正确密码成功，错误密码失败，多次失败限流"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "正常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "异常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "预期"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "未执行"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "限流"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "tests-pagination",
+      "kind": "tests",
+      "goal": "读取 brief.md，生成 plan.md 测试计划，必须包含“正常”“异常”“预期”“未执行”和“页码”。每条用例描述前置条件、操作和预期结果；本任务只设计测试，不声称执行过。",
+      "files": {
+        "brief.md": "分页查询：正常翻页、空结果、非法页码"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "正常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "异常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "预期"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "未执行"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "页码"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "tests-permission",
+      "kind": "tests",
+      "goal": "读取 brief.md，生成 plan.md 测试计划，必须包含“正常”“异常”“预期”“未执行”和“只读”。每条用例描述前置条件、操作和预期结果；本任务只设计测试，不声称执行过。",
+      "files": {
+        "brief.md": "权限：管理员可编辑，只读成员不可编辑"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "正常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "异常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "预期"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "未执行"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "只读"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "tests-retry",
+      "kind": "tests",
+      "goal": "读取 brief.md，生成 plan.md 测试计划，必须包含“正常”“异常”“预期”“未执行”和“取消”。每条用例描述前置条件、操作和预期结果；本任务只设计测试，不声称执行过。",
+      "files": {
+        "brief.md": "网络请求失败后最多重试三次，取消时立即终止"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "正常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "异常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "预期"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "未执行"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "取消"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "tests-deadline",
+      "kind": "tests",
+      "goal": "读取 brief.md，生成 plan.md 测试计划，必须包含“正常”“异常”“预期”“未执行”和“时区”。每条用例描述前置条件、操作和预期结果；本任务只设计测试，不声称执行过。",
+      "files": {
+        "brief.md": "截止时间：可为空，过去日期提示，跨时区展示"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "正常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "异常"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "预期"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "未执行"
+          },
+          {
+            "type": "contains",
+            "path": "plan.md",
+            "text": "时区"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "document-api",
+      "kind": "document",
+      "goal": "读取 brief.md，生成 README.md。包含“## 使用说明”和“## 限制”，准确保留“201”，不得编造 brief.md 中不存在的能力。",
+      "files": {
+        "brief.md": "接口 POST /tasks，必填 title，成功返回 201，空标题返回 400。"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 使用说明"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 限制"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "201"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "document-install",
+      "kind": "document",
+      "goal": "读取 brief.md，生成 README.md。包含“## 使用说明”和“## 限制”，准确保留“npm ci”，不得编造 brief.md 中不存在的能力。",
+      "files": {
+        "brief.md": "使用 Node.js 20.19+，npm ci 安装，npm start 启动。"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 使用说明"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 限制"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "npm ci"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "document-config",
+      "kind": "document",
+      "goal": "读取 brief.md，生成 README.md。包含“## 使用说明”和“## 限制”，准确保留“TASK_API_URL”，不得编造 brief.md 中不存在的能力。",
+      "files": {
+        "brief.md": "配置通过 TASK_API_URL 注入，默认只读模式，不在日志输出密钥。"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 使用说明"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 限制"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "TASK_API_URL"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "document-status",
+      "kind": "document",
+      "goal": "读取 brief.md，生成 README.md。包含“## 使用说明”和“## 限制”，准确保留“waiting_input”，不得编造 brief.md 中不存在的能力。",
+      "files": {
+        "brief.md": "状态 pending、running、waiting_input、completed；waiting_input 需要用户补充。"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 使用说明"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 限制"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "waiting_input"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "document-recovery",
+      "kind": "document",
+      "goal": "读取 brief.md，生成 README.md。包含“## 使用说明”和“## 限制”，准确保留“resume”，不得编造 brief.md 中不存在的能力。",
+      "files": {
+        "brief.md": "进程中断后使用 resume 恢复；结果未知的远程写入必须人工核实。"
+      },
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 使用说明"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 限制"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "resume"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "code-add",
+      "kind": "code",
+      "goal": "将 answer.mjs 的 add(a,b) 修复为数值相加。 先读取文件再修改，使用 run_checks 运行 verify-add；失败时修正，不要改动导出名称。",
+      "files": {
+        "answer.mjs": "export function add(a,b){ return a-b; }\n"
+      },
+      "validation": {
+        "rules": [],
+        "checks": [
+          "verify-add"
+        ],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "code-trim",
+      "kind": "code",
+      "goal": "实现 answer.mjs 的 normalizeTitle(s)：去除首尾空白，连续空白归一为空格。 先读取文件再修改，使用 run_checks 运行 verify-trim；失败时修正，不要改动导出名称。",
+      "files": {
+        "answer.mjs": "export function normalizeTitle(s){ return s; }\n"
+      },
+      "validation": {
+        "rules": [],
+        "checks": [
+          "verify-trim"
+        ],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "code-clamp",
+      "kind": "code",
+      "goal": "实现 answer.mjs 的 clamp(x,min,max)，限制数值到闭区间。假设 min<=max。 先读取文件再修改，使用 run_checks 运行 verify-clamp；失败时修正，不要改动导出名称。",
+      "files": {
+        "answer.mjs": "export function clamp(x,min,max){ return x; }\n"
+      },
+      "validation": {
+        "rules": [],
+        "checks": [
+          "verify-clamp"
+        ],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "code-unique",
+      "kind": "code",
+      "goal": "实现 answer.mjs 的 unique(xs)，移除重复数字并保留首次出现顺序。 先读取文件再修改，使用 run_checks 运行 verify-unique；失败时修正，不要改动导出名称。",
+      "files": {
+        "answer.mjs": "export function unique(xs){ return xs; }\n"
+      },
+      "validation": {
+        "rules": [],
+        "checks": [
+          "verify-unique"
+        ],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "code-divide",
+      "kind": "code",
+      "goal": "实现 answer.mjs 的 safeDivide(a,b)，b 为 0 时返回 null，否则返回 a/b。 先读取文件再修改，使用 run_checks 运行 verify-divide；失败时修正，不要改动导出名称。",
+      "files": {
+        "answer.mjs": "export function safeDivide(a,b){ return a/b; }\n"
+      },
+      "validation": {
+        "rules": [],
+        "checks": [
+          "verify-divide"
+        ],
+        "requireApproval": false
+      }
+    }
+  ]
+}

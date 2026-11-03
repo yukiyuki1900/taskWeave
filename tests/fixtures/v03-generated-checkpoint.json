@@ -1,0 +1,65 @@
+{
+  "task": {
+    "version": 1,
+    "id": "tw_aaaaaaaaaaaaaaaaaaaaaaaa",
+    "kind": "document",
+    "title": "v0.3 checkpoint",
+    "goal": "恢复已生成说明",
+    "acceptanceCriteria": [],
+    "status": "validating",
+    "provider": "legacy:v03",
+    "workspace": "__WORKSPACE__",
+    "createdAt": "2026-11-01T00:00:00.000Z",
+    "updatedAt": "2026-11-01T00:00:00.000Z",
+    "seq": 1,
+    "steps": 1,
+    "maxSteps": 24,
+    "messages": [
+      {
+        "role": "system",
+        "content": "生成说明"
+      },
+      {
+        "role": "user",
+        "content": "恢复已生成说明"
+      },
+      {
+        "role": "assistant",
+        "content": "说明已生成"
+      }
+    ],
+    "pendingCalls": [],
+    "artifacts": [
+      {
+        "path": "existing.md",
+        "sha256": "42ef88fa8da70d91bb03505ec745cf1e2419eb05bd40ecd8cf9d73921aac7577",
+        "bytes": 20
+      }
+    ],
+    "childTaskIds": [],
+    "usage": {
+      "input": 10,
+      "output": 5
+    },
+    "answer": "说明已生成",
+    "validationPolicy": {
+      "rules": [],
+      "checks": [],
+      "requireApproval": true
+    },
+    "executionConfigHash": "be759cbd8e2170c1a431b42f55a3a51b5a6408576c2fc6165a812b29be8a71b5"
+  },
+  "event": {
+    "taskId": "tw_aaaaaaaaaaaaaaaaaaaaaaaa",
+    "seq": 1,
+    "time": "2026-11-01T00:00:00.000Z",
+    "type": "task.generated",
+    "data": {
+      "artifactCount": 1,
+      "childTaskCount": 0
+    }
+  },
+  "files": {
+    "existing.md": "# Existing document\n"
+  }
+}

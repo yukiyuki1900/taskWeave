@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "checks": {
+    "project-test": {
+      "command": "node",
+      "args": [
+        "--test",
+        "test/smoke.test.mjs"
+      ],
+      "cwd": ".",
+      "timeoutMs": 30000,
+      "maxOutputBytes": 16384
+    }
+  },
+  "validation": {
+    "code": {
+      "checks": [
+        "project-test"
+      ],
+      "requireApproval": true
+    },
+    "tests": {
+      "rules": [
+        {
+          "type": "contains",
+          "path": "artifacts/test-plan.md",
+          "text": "预期结果"
+        }
+      ],
+      "requireApproval": true
+    },
+    "document": {
+      "rules": [
+        {
+          "type": "contains",
+          "path": "README.md",
+          "text": "## 使用说明"
+        }
+      ],
+      "requireApproval": true
+    },
+    "requirements": {
+      "rules": [
+        {
+          "type": "json_fields",
+          "path": "artifacts/requirements.json",
+          "fields": [
+            "scope",
+            "stories",
+            "acceptance"
+          ]
+        }
+      ],
+      "requireApproval": true
+    }
+  }
+}

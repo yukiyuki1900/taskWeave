@@ -1,20 +1,26 @@
-# TaskWeave 初版架构
+# TaskWeave v0.3 架构
 
 ## 模块职责
 
+目录和依赖规则见 [模块边界与迁移](architecture/module-boundaries.md)，后续应用拆分见 [路线图](roadmap.md)。
+
 | 模块 | 职责 |
 | --- | --- |
-| `cli.ts` | 参数校验、环境配置、取消信号、进度与结果输出 |
-| `presets.ts` | 各任务类型的系统指令及验收要求 |
-| `engine.ts` | 统一执行循环、预算、暂停恢复、结果归档 |
-| `provider.ts` | Chat Completions HTTP 适配和返回值校验 |
-| `context.ts` | 按完整 assistant/tool 轮次裁剪上下文 |
-| `tools.ts` | 工具声明、运行时参数检查和执行 |
-| `files.ts` | 路径检查、文本读取、SHA-256、文件替换 |
-| `store.ts` | 工作区锁、任务快照、JSONL 事件和工具回执 |
-| `demo.ts` | 可复现的固定脚本 Provider，不包含真实推理 |
+| `apps/cli` | 参数、信号、终端及 JSON 输出、配置读取与依赖组装 |
+| `core/task` | 任务初始化、稳定子任务身份与创建事件 |
+| `core/workflow` | 定义校验、串行调度、attempt 有效性、返工与恢复 |
+| `core/agent` | 统一执行循环、上下文、预算、暂停与检查点 |
+| `core/tools` | 工具声明、运行时参数校验、调用与结果处理 |
+| `core/validation` / `core/artifacts` | 验证策略、命令执行账本、证据和产物一致性 |
+| `core/ports` | StateStore、WorkspacePort、ModelProvider、CheckRunner 接口 |
+| `adapters/providers` | Chat Completions HTTP 适配与离线脚本 Provider |
+| `adapters/storage/filesystem` | 工作区锁、JSON 快照、JSONL 事件、回执与配置读取 |
+| `adapters/workspace/local` | 文件路径检查、文本读取与基于 hash 的原子更新 |
+| `adapters/checks/process` | 固定命令的 cwd 检查、受限环境、取消与资源限制 |
+| `evaluation` | 用例隔离、评测执行和逐例报告 |
+| `contracts` | 不依赖 Node.js、业务服务或适配器的共享协议 |
 
-`TaskEngine` 只依赖 `ModelProvider` 接口，离线 Provider 和 HTTP Provider 返回相同的 `ModelTurn`。供应商协议隔离在适配器内，工具侧只接受解析后的调用名称和 JSON 参数。
+`TaskEngine` 通过 `ModelProvider`、`StateStore` 和 `RuntimeServices` 接口运行，离线 Provider 和 HTTP Provider 返回相同的 `ModelTurn`。供应商协议隔离在适配器内，工具侧只接受解析后的调用名称和 JSON 参数。
 
 ## 一次运行
 
@@ -24,7 +30,8 @@
 4. 按字符预算整理模型上下文，保存 `model.started` 和已消耗步数，然后请求模型。
 5. 校验模型返回值，将 assistant 消息与整批待执行调用保存，再执行工具。
 6. 工具依次执行，结果写入回执，再追加 tool 消息并更新产物与子任务索引。
-7. 模型请求更多工具就继续循环；返回最终回答则结束。
+7. 模型请求更多工具就继续循环；返回最终回答则保存 `task.generated` 检查点，进入独立验证。
+8. 执行配置命令、核对产物 hash、检查文件规则，保存验证结果。默认等待人工验收；显式自动验收策略通过时完成。
 
 单轮最多接受 16 个工具调用。工具参数错误、未知工具和普通文件错误作为结构化 observation 反馈给模型，模型有机会纠正；模型协议错误、HTTP 错误和上下文超限会终止本次运行并保留检查点。
 
@@ -38,7 +45,13 @@ stateDiagram-v2
   pending --> running: run / resume
   running --> waiting_input: ask_user
   waiting_input --> running: resume + answer
-  running --> completed: 最终回答
+  running --> validating: 最终回答已保存
+  validating --> validation_failed: 独立检查失败
+  validating --> waiting_acceptance: 通过且需要人工验收
+  validating --> completed: 通过且显式配置自动验收
+  waiting_acceptance --> completed: accept 且新一轮检查通过
+  waiting_acceptance --> validation_failed: reject 或接受时检查失败
+  validation_failed --> running: resume 将失败证据交给模型
   running --> failed: 超时或不可恢复错误
   running --> cancelled: 取消
   running --> budget_exceeded: 步数耗尽
@@ -63,6 +76,9 @@ stateDiagram-v2
 | 回执已保存、tool 消息未保存 | 读取回执，不再次执行工具；恢复消息与产物索引 |
 | 事件追加完成、快照替换前 | 从旧快照继续；新事件序号大于日志尾部，不保证业务事件不重复 |
 | JSONL 最后一次追加被截断 | 忽略未换行尾片段，下次追加前截掉该片段 |
+| 生成回答已保存、尚未验证 | 恢复进入验证，不再次请求模型 |
+| 命令 started 已保存、finished 未保存 | 返回 unknown，不自动重新执行 |
+| 验证命令 finished 已保存、验证快照未完成 | 按验证 ID 复用命令结果 |
 
 这些策略覆盖当前文件与创建任务工具的常见恢复窗口，不提供通用 exactly-once 语义。新增支付、发消息、远程修改等工具前，必须设计外部服务可识别的幂等键，不能直接沿用“失败就重试”。
 
@@ -78,13 +94,15 @@ stateDiagram-v2
 
 初版对同一工作区采用单执行器，不在工具执行期间自动启动子任务。`list`、`show` 和 `events` 可以在执行期间读取已经落盘的记录。
 
-文件工具拒绝符号链接和特定目录；只暴露文件与结构化任务能力。宿主进程的系统权限并没有被降级，因此不能把这层检查当成隔离不可信租户的安全边界。若扩展为服务，需要在进程或容器层限制文件、网络、资源和凭据访问，并添加身份与任务权限校验。
+文件工具拒绝符号链接和特定目录；配置后额外开放固定命令验证。命令使用最小继承环境、超时及输出限制，但宿主进程权限没有降级；被执行的生成代码同样具有宿主用户权限。这些机制不是隔离不可信租户的安全边界。若扩展为服务，需要进程或容器层限制文件、网络、资源和凭据访问，并添加身份与任务权限校验。
+
+创建任务时保存规范化配置的 hash，恢复前核对配置；用户维护隐藏配置，模型只接收允许的命令名称。人工验收前重新检查文件和命令，避免基于旧证据接受产物。本地外部进程仍可能在检查后修改文件，未提供跨进程文件事务。
 
 ## 可扩展点
 
 - 模型：实现 `ModelProvider`，补充协议契约测试，并保留稳定 Provider 标识。
-- 工具：同时补齐 `TOOL_DEFINITIONS`、参数校验、权限规则和副作用恢复策略。
-- 验收：在最终回答后增加独立验证阶段，区分“已生成”“已执行”“已验证”。
-- 调度：为子任务增加显式依赖、循环检测、并发配额和独立工作区，再引入调度器。
+- 工具：同时补齐 `core/tools` 中的 `TOOL_DEFINITIONS`、参数校验、权限规则和副作用恢复策略。
+- 验收：增加领域 Schema、人工盲评与更细的证据类型，现有规则以结构和配置检查为主。
+- 调度：在现有串行 DAG 上增加独立工作区、并行配额和合并机制；分布式执行需要任务所有权与租约。
 
-上述扩展尚未实现；本版不将任务类型命名为多个独立 Agent。
+v0.3 使用固定 DAG 串行调度，每个节点的 attempt 对应独立 Task 与回执；验证 ID 仅关联该 Task 的一轮独立检查。节点状态与 attempt 隔离、返工及持久化顺序见 [工作流说明](guides/workflows.md)。不把任务类型命名为多个独立 Agent。

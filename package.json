@@ -1,18 +1,35 @@
 {
   "name": "taskweave-agent",
-  "version": "0.1.0-alpha.1",
+  "version": "0.3.0-alpha.1",
   "description": "TaskWeave · 织程 — a task-oriented agent for requirements, tests, documents and code",
   "type": "module",
   "private": true,
   "license": "MIT",
-  "engines": { "node": ">=20.19" },
-  "bin": { "taskweave": "bin/taskweave.mjs" },
+  "engines": {
+    "node": ">=20.19"
+  },
+  "bin": {
+    "taskweave": "bin/taskweave.mjs"
+  },
   "scripts": {
     "start": "node bin/taskweave.mjs",
     "demo": "node bin/taskweave.mjs run --demo --kind requirements --prompt '设计一个团队待办应用，支持负责人、截止时间和任务状态' --workspace .demo",
-    "test": "node --import tsx --test test/*.test.ts",
-    "typecheck": "tsc --noEmit"
+    "workflow:demo": "node bin/taskweave.mjs workflow run --demo --file examples/workflows/demo.json --workspace .demo/workflow",
+    "eval:demo": "node bin/taskweave.mjs eval --demo --suite examples/evaluation/demo.json --workspace .cache/evaluations",
+    "eval": "node bin/taskweave.mjs eval --suite examples/evaluation/baseline.json --workspace .cache/evaluations",
+    "test": "node --import tsx --test packages/*/test/*.test.ts tests/integration/*.test.ts tests/e2e/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "check:boundaries": "node scripts/check-boundaries.mjs"
   },
-  "dependencies": { "tsx": "4.23.15" },
-  "devDependencies": { "@types/node": "20.19.43", "typescript": "5.9.3" }
+  "dependencies": {
+    "tsx": "4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "typescript": "5.9.3"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
 }

@@ -1,0 +1,16 @@
+{
+  "name": "@taskweave/core",
+  "version": "0.3.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./ports": "./src/ports/index.ts",
+    "./types": "./src/types.ts",
+    "./config": "./src/config/index.ts"
+  },
+  "dependencies": {
+    "@taskweave/contracts": "0.3.0-alpha.1"
+  }
+}

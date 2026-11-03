@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "name": "Deterministic runtime smoke checks, NOT model quality",
+  "cases": [
+    {
+      "id": "demo-requirements",
+      "kind": "requirements",
+      "goal": "离线评测：requirements",
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "artifacts/requirements-c4982b8d.md",
+            "text": "离线评测：requirements"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "demo-tests",
+      "kind": "tests",
+      "goal": "离线评测：tests",
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "artifacts/tests-7e95d5cd.md",
+            "text": "离线评测：tests"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "demo-document",
+      "kind": "document",
+      "goal": "离线评测：document",
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "artifacts/document-89fc4e5f.md",
+            "text": "离线评测：document"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "demo-code",
+      "kind": "code",
+      "goal": "离线评测：code",
+      "validation": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "generated/normalize-title-ad144389.ts",
+            "text": "normalizeTitle"
+          }
+        ],
+        "checks": [],
+        "requireApproval": false
+      }
+    }
+  ]
+}
