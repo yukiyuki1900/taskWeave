@@ -1,6 +1,6 @@
 {
   "name": "taskweave-agent",
-  "version": "0.3.0-alpha.1",
+  "version": "0.4.0-alpha.1",
   "description": "TaskWeave · 织程 — a task-oriented agent for requirements, tests, documents and code",
   "type": "module",
   "private": true,
@@ -19,7 +19,8 @@
     "eval": "node bin/taskweave.mjs eval --suite examples/evaluation/baseline.json --workspace .cache/evaluations",
     "test": "node --import tsx --test packages/*/test/*.test.ts tests/integration/*.test.ts tests/e2e/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "check:boundaries": "node scripts/check-boundaries.mjs"
+    "check:boundaries": "node scripts/check-boundaries.mjs",
+    "server": "node apps/server/bin/taskweave-server.mjs"
   },
   "dependencies": {
     "tsx": "4.23.15"

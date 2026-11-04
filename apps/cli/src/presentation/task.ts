@@ -1,7 +1,7 @@
 import { PRESETS } from '@taskweave/core';
 import type { Task } from '@taskweave/core/types';
 
-export const HELP = `TaskWeave · 织程  v0.3.0-alpha.1
+export const HELP = `TaskWeave · 织程  v0.4.0-alpha.1
 
 任务驱动的 Agent：需求、测试、文档与代码共享执行内核。
 
@@ -11,6 +11,9 @@ export const HELP = `TaskWeave · 织程  v0.3.0-alpha.1
   taskweave resume <task-id> --workspace ./work [--answer "补充信息"]
   taskweave list --workspace ./work
   taskweave show <task-id> --workspace ./work
+  taskweave summary <task-id> --workspace ./work [--json]
+  taskweave skills list --workspace ./work
+  taskweave skills show <skill-id> --workspace ./work
   taskweave events <task-id> --workspace ./work [--after 10]
   taskweave unlock --workspace ./work
   taskweave validate <task-id> --workspace ./work
@@ -22,6 +25,7 @@ export const HELP = `TaskWeave · 织程  v0.3.0-alpha.1
 选项：
   --kind         requirements | tests | document | code | general（默认 general）
   --prompt       任务目标
+  --skill        显式选择已注册的本地 Skill（可重复，最多 3 个；仅 run）
   --workspace    工作目录（默认当前目录）
   --max-steps    累计模型调用上限（默认 24，最大 200，恢复时可增加）
   --timeout      本次执行时限，秒（默认 300，最大 3600）
@@ -43,7 +47,7 @@ export const defaultIO: IO = { out: line => process.stdout.write(line + '\n'), e
 export function present(task: Task): Record<string, unknown> {
   return {
     id: task.id, kind: task.kind, title: task.title, status: task.status, parentId: task.parentId,
-    workflow: task.workflow,
+    workflow: task.workflow, handoff: task.handoff, summary: task.summary, skills: task.skills, contextBudget: task.contextBudget,
     goal: task.goal, acceptanceCriteria: task.acceptanceCriteria, workspace: task.workspace,
     steps: task.steps, maxSteps: task.maxSteps, provider: task.provider,
     artifacts: task.artifacts, childTaskIds: task.childTaskIds, usage: task.usage,

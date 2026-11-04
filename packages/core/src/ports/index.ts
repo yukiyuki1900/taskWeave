@@ -1,4 +1,4 @@
-export type { StateStore } from './state-store.ts';
+export type { StateStore, ReadStateStore } from './state-store.ts';
 export type { WorkspacePort } from './workspace.ts';
 export type { CheckRunner, PreparedCheck } from './check-runner.ts';
 export type { ModelProvider } from './model-provider.ts';

@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "name": "v0.4：上下文交接与本地 Skill",
+  "nodes": [
+    {
+      "id": "requirements",
+      "kind": "requirements",
+      "goal": "为一个标题规范化函数整理需求。输入为字符串，去除首尾空白、连续内部空白归一为空格，空白字符串返回空字符串。写入 artifacts/requirements.json，顶层含 scope、stories、rules、acceptance。说明只处理字符串输入，等待人工确认。",
+      "validationPolicy": {
+        "rules": [
+          {
+            "type": "json_fields",
+            "path": "artifacts/requirements.json",
+            "fields": [
+              "scope",
+              "stories",
+              "rules",
+              "acceptance"
+            ]
+          }
+        ],
+        "requireApproval": true
+      }
+    },
+    {
+      "id": "implementation",
+      "kind": "code",
+      "goal": "读取已验收需求，实现 src/normalize-title.mjs，导出 normalizeTitle(value)。输入为字符串，去除首尾空白、连续内部空白归一为空格。运行 normalize-smoke；根据真实失败修正，保留其他文件。",
+      "dependsOn": [
+        "requirements"
+      ],
+      "validationPolicy": {
+        "checks": [
+          "normalize-smoke"
+        ],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "tests",
+      "kind": "tests",
+      "goal": "依据需求及 src/normalize-title.mjs 生成 tests/normalize-title.test.mjs，使用 node:test 与 node:assert/strict；覆盖空字符串、全空白、首尾空白、内部连续空白与换行。导入 ../src/normalize-title.mjs 中 normalizeTitle，运行 regression 验证，失败后根据真实结果修正。不要创建额外子任务。",
+      "dependsOn": [
+        "implementation"
+      ],
+      "validationPolicy": {
+        "rules": [
+          {
+            "type": "exists",
+            "path": "tests/normalize-title.test.mjs"
+          }
+        ],
+        "checks": [
+          "regression"
+        ],
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "documentation",
+      "kind": "document",
+      "goal": "依据已有需求、源码与测试产物编写 README.md，包含 ## 使用说明 和 ## 验证结果，示例使用 normalizeTitle，记录 Node.js 版本要求与实际测试命令，不编造执行结果。",
+      "dependsOn": [
+        "tests"
+      ],
+      "validationPolicy": {
+        "rules": [
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 使用说明"
+          },
+          {
+            "type": "contains",
+            "path": "README.md",
+            "text": "## 验证结果"
+          }
+        ],
+        "requireApproval": true
+      },
+      "skills": [
+        "doc-style"
+      ]
+    }
+  ]
+}

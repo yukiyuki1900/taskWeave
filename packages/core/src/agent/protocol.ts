@@ -9,13 +9,13 @@ export interface Message {
   content: string | null;
   tool_calls?: ToolCall[];
   tool_call_id?: string;
-  reasoning_content?: string;
+  reasoning_content?: string | null;
 }
 
 export interface ModelTurn {
   content: string | null;
   toolCalls: ToolCall[];
-  reasoningContent?: string;
+  reasoningContent?: string | null;
   usage?: { input: number; output: number };
 }
 

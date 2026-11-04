@@ -1,3 +1,4 @@
+import { decodeTask, decodeWorkflow } from './snapshots.ts';
 import { hostname } from 'node:os';
 import { lstat, mkdir, open, readFile, readdir, realpath, unlink } from 'node:fs/promises';
 import path from 'node:path';
@@ -5,10 +6,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { atomicWrite } from './atomic-write.ts';
 import { hasCode, sha256 } from '@taskweave/core';
 import type { StateStore } from '@taskweave/core/ports';
-import { isTaskKind, TaskWeaveError } from '@taskweave/core/types';
+import { TaskWeaveError } from '@taskweave/core/types';
 import type { Task, TaskEvent, ToolResult } from '@taskweave/core/types';
 import type { WorkflowEvent, WorkflowRun } from '@taskweave/contracts';
-import { parseWorkflow } from '@taskweave/core';
 
 const ID = /^tw_[a-f0-9]{24}$/;
 const now = (): string => new Date().toISOString();
@@ -17,12 +17,12 @@ export class TaskStore implements StateStore {
   private lockContext = new AsyncLocalStorage<{ active: boolean }>();
   private constructor(readonly workspace: string, readonly directory: string) {}
 
-  static async open(workspace: string): Promise<TaskStore> {
-    await mkdir(path.resolve(workspace), { recursive: true });
+  static async open(workspace: string, options: { create?: boolean } = {}): Promise<TaskStore> {
+    if (options.create !== false) await mkdir(path.resolve(workspace), { recursive: true });
     const root = await realpath(workspace);
     const directory = path.join(root, '.taskweave');
     for (const part of [directory, ...['tasks', 'events', 'receipts', 'check-runs', 'workflows'].map(name => path.join(directory, name))]) {
-      await mkdir(part, { mode: 0o700 }).catch(error => { if (!hasCode(error, 'EEXIST')) throw error; });
+      if (options.create !== false) await mkdir(part, { mode: 0o700 }).catch(error => { if (!hasCode(error, 'EEXIST')) throw error; });
       const info = await lstat(part);
       if (!info.isDirectory() || info.isSymbolicLink()) throw new TaskWeaveError('STATE_PATH_DENIED', '状态目录必须是普通目录');
     }
@@ -85,11 +85,7 @@ export class TaskStore implements StateStore {
   }
 
   async loadWorkflow(id: string): Promise<WorkflowRun> {
-    const run = JSON.parse(await readFile(this.workflowFile(id, 'json'), 'utf8')) as WorkflowRun;
-    if (run.version !== 1 || run.id !== id || run.workspace !== this.workspace || !Array.isArray(run.nodes) || !Number.isSafeInteger(run.seq)) throw new TaskWeaveError('CORRUPT_WORKFLOW', '工作流快照无效或属于其他工作区');
-    const definition = parseWorkflow(run.definition);
-    if (run.nodes.length !== definition.nodes.length || run.nodes.some((node, index) => node.id !== definition.nodes[index].id || !Array.isArray(node.attempts))) throw new TaskWeaveError('CORRUPT_WORKFLOW', '工作流节点快照无效');
-    return run;
+    return decodeWorkflow(await readFile(this.workflowFile(id, 'json'), 'utf8'), id, this.workspace);
   }
 
   async listWorkflows(): Promise<WorkflowRun[]> {
@@ -129,12 +125,7 @@ export class TaskStore implements StateStore {
   }
 
   async load(id: string): Promise<Task> {
-    const value = JSON.parse(await readFile(this.file(id, 'tasks', 'json'), 'utf8')) as Task;
-    if (value.version !== 1 || value.id !== id || value.workspace !== this.workspace || !isTaskKind(value.kind)
-      || !Array.isArray(value.messages) || !Array.isArray(value.pendingCalls) || !Number.isSafeInteger(value.steps)) {
-      throw new TaskWeaveError('CORRUPT_TASK', '任务快照无效或属于其他工作区');
-    }
-    return value;
+    return decodeTask(await readFile(this.file(id, 'tasks', 'json'), 'utf8'), id, this.workspace);
   }
 
   async list(): Promise<Task[]> {

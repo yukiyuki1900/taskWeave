@@ -20,3 +20,6 @@ export interface StateStore {
   checkRecord<T>(taskId: string, key: string): Promise<T | null>;
   saveCheckRecord(taskId: string, key: string, record: unknown): Promise<void>;
 }
+
+/** Observation only: no lock, mutation, receipt or command API is available. */
+export type ReadStateStore = Pick<StateStore, 'workspace' | 'load' | 'list' | 'events' | 'loadWorkflow' | 'listWorkflows' | 'workflowEvents'>;

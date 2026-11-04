@@ -1,6 +1,6 @@
 # 模块边界与目录迁移
 
-本次整理基于 v0.3，保持本地单用户、固定 DAG 串行执行。没有新增 Server、独立 Runtime、Gateway 或 Web。只在实现对应功能时建立应用目录。
+目录整理始于 v0.3，保持本地单用户、固定 DAG 串行执行。v0.5 MR 1 新增只读 Server；尚无独立 Runtime、Gateway 或 Web 应用。只在实现对应功能时建立应用目录。
 
 ## 工作区结构
 
@@ -11,7 +11,13 @@ apps/cli/
   src/bootstrap.ts       操作者环境配置与本地依赖组装
   src/commands/          参数校验、信号与控制动作
   src/presentation/      帮助文本、终端和 JSON 输出
-packages/contracts/src/  task、workflow、events、artifact、validation 协议
+apps/server/src/
+  app.ts                 只读路由、参数、HTTP 响应与错误
+  queries/               任务、工作流、报告、事件及产物查询
+  presentation/          对外展示字段白名单
+  bootstrap.ts           组装只读存储与文件读取器
+  server.ts / main.ts    本地 HTTP 适配与启动
+packages/contracts/src/  http 展示模型、task、workflow、events、artifact、validation 协议
 packages/core/src/
   task/                  任务类型、初始化、稳定身份
   workflow/              依赖图、串行编排、attempt 校验与恢复
@@ -40,12 +46,16 @@ tests/e2e/              CLI 与完整工作流测试
 - core 依赖 contracts；不导入 adapters、CLI、evaluation、文件系统、HTTP 或子进程。
 - adapters 实现 core 的 ports，可以依赖 core 与 contracts。
 - evaluation 组合 core 与 adapters，提供独立的离线评测宿主。
+- Server 组合 contracts/core/adapters，使用 ReadStateStore 和只读文件端口；不依赖 CLI 或 evaluation。
 - CLI 组合上述能力；参数、环境变量、进程信号和展示留在 CLI。
 
 core 使用 Node.js crypto 生成身份与指纹，使用 path 做纯路径配置校验；这两个内置模块不读写外部资源。core 不承诺可直接运行在浏览器中。contracts 不依赖 Node.js，可供未来 Web 复用。
 
 ```mermaid
 flowchart TD
+  Server[apps/server] --> Core
+  Server --> Adapters
+  Server --> Contracts
   CLI[apps/cli] --> Core[packages/core]
   CLI --> Adapters[packages/adapters]
   CLI --> Eval[packages/evaluation]
@@ -68,7 +78,7 @@ flowchart TD
 | CheckRunner | 准备命令执行，再运行已准备的命令 | ProcessCheckRunner |
 | RuntimeServices | 组装工作区工厂与命令实现 | localServices |
 
-接口只覆盖已有功能，未提前加入消息队列、分布式租约、容器或数据库抽象。模型协议与内部 Task 检查点在 core，跨应用可共享的工作流、事件及产物描述在 contracts。未来 HTTP API 必须单独定义对外视图，不能直接返回完整内部快照或默认公开事件中的原始 data。
+接口只覆盖已有功能，未提前加入消息队列、分布式租约、容器或数据库抽象。模型协议与内部 Task 检查点在 core，跨应用可共享的工作流、事件及产物描述在 contracts。HTTP API 使用 contracts/http 中单独定义的对外视图，不返回完整内部快照或默认公开事件中的原始 data。Server 的 FileStateReader 没有写入方法，读取 v1 数据而不加载模型和验证配置。详情见 [只读 API](../guides/read-api.md)。
 
 ## 必须保留的恢复顺序
 

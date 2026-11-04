@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
-import { TaskEngine, TaskReviewer, errorMessage, isTaskKind, TaskWeaveError } from '@taskweave/core';
+import { TaskEngine, TaskReviewer, summaryValid, errorMessage, isTaskKind, TaskWeaveError } from '@taskweave/core';
 import type { TaskEvent } from '@taskweave/core/types';
+import { Workspace } from '@taskweave/adapters';
 import { evaluate, loadSuite } from '@taskweave/evaluation';
 import { TaskStore, loadConfig, providerFor, localServices } from '../bootstrap.ts';
 import { HELP, defaultIO, present, printTask, exitStatus } from '../presentation/task.ts';
@@ -15,7 +16,7 @@ function number(value: string | undefined, name: string, fallback: number, max: 
 export async function taskMain(argv: string[], io: IO = defaultIO): Promise<number> {
   try {
     const parsed = parseArgs({ args: argv, allowPositionals: true, strict: true, options: {
-      kind: { type: 'string' }, prompt: { type: 'string' }, workspace: { type: 'string' },
+      skill: { type: 'string', multiple: true }, kind: { type: 'string' }, prompt: { type: 'string' }, workspace: { type: 'string' },
       'max-steps': { type: 'string' }, timeout: { type: 'string' }, answer: { type: 'string' }, after: { type: 'string' },
       config: { type: 'string' }, note: { type: 'string' }, suite: { type: 'string' }, limit: { type: 'string' },
       demo: { type: 'boolean', default: false }, json: { type: 'boolean', default: false }, help: { type: 'boolean', short: 'h' }
@@ -23,12 +24,12 @@ export async function taskMain(argv: string[], io: IO = defaultIO): Promise<numb
     const flags = parsed.values;
     if (flags.help || !parsed.positionals.length) { io.out(HELP); return 0; }
     const [command, id, ...extra] = parsed.positionals;
-    if (extra.length || !['run', 'resume', 'list', 'show', 'events', 'unlock', 'validate', 'accept', 'reject', 'eval'].includes(command)) throw new TaskWeaveError('INVALID_COMMAND', '无效命令，使用 --help 查看用法');
-    const needsId = ['resume', 'show', 'events', 'validate', 'accept', 'reject'].includes(command);
+    if (extra.length || !['run', 'resume', 'list', 'show', 'summary', 'events', 'unlock', 'validate', 'accept', 'reject', 'eval'].includes(command)) throw new TaskWeaveError('INVALID_COMMAND', '无效命令，使用 --help 查看用法');
+    const needsId = ['resume', 'show', 'summary', 'events', 'validate', 'accept', 'reject'].includes(command);
     if ((needsId && !id) || (!needsId && id)) throw new TaskWeaveError('INVALID_COMMAND', '任务 ID 参数缺失或多余');
     const allowed: Record<string, string[]> = {
-      run: ['kind', 'prompt', 'max-steps', 'timeout', 'demo', 'config'], resume: ['answer', 'max-steps', 'timeout', 'demo', 'config'],
-      list: [], show: [], events: ['after'], unlock: [], validate: ['config', 'timeout'], accept: ['config', 'note', 'timeout'], reject: ['config', 'note'],
+      run: ['skill', 'kind', 'prompt', 'max-steps', 'timeout', 'demo', 'config'], resume: ['answer', 'max-steps', 'timeout', 'demo', 'config'],
+      list: [], show: [], summary: [], events: ['after'], unlock: [], validate: ['config', 'timeout'], accept: ['config', 'note', 'timeout'], reject: ['config', 'note'],
       eval: ['suite', 'limit', 'max-steps', 'timeout', 'demo']
     };
     for (const [key, value] of Object.entries(flags)) {
@@ -55,12 +56,17 @@ export async function taskMain(argv: string[], io: IO = defaultIO): Promise<numb
         return controller.signal.aborted ? 130 : report.summary.passed === report.planned ? 0 : 1;
       } finally { process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop); }
     }
-    const store = await TaskStore.open(flags.workspace ?? process.cwd());
+    const store = await TaskStore.open(flags.workspace ?? process.cwd(), { create: command !== 'summary' });
     const json = Boolean(flags.json);
     if (command === 'list') {
       const tasks = await store.list();
       if (json) io.out(JSON.stringify(tasks.map(present), null, 2));
       else io.out(tasks.length ? tasks.map(task => `${task.id}  ${task.status.padEnd(16)} ${task.kind.padEnd(12)} ${task.title}`).join('\n') : '还没有任务。使用 run 创建任务。');
+      return 0;
+    }
+    if (command === 'summary') {
+      const task = await store.load(id!);
+      io.out(JSON.stringify({ taskId: task.id, summary: task.summary ?? null, evidenceCurrent: task.summary ? await summaryValid(task, task.summary, new Workspace(store.workspace)) : false, handoff: task.handoff ?? null, skills: task.skills ?? [] }, null, 2));
       return 0;
     }
     if (command === 'show') { printTask(await store.load(id!), io, json); return 0; }
@@ -93,7 +99,7 @@ export async function taskMain(argv: string[], io: IO = defaultIO): Promise<numb
     const engine = new TaskEngine(localServices, store, provider, config);
     const maxSteps = number(flags['max-steps'], '--max-steps', oldTask?.maxSteps ?? 24, 200);
     const timeoutMs = number(flags.timeout, '--timeout', 300, 3600) * 1000;
-    const task = oldTask ?? await engine.create({ kind, goal: flags.prompt!, maxSteps });
+    const task = oldTask ?? await engine.create({ kind, goal: flags.prompt!, maxSteps, skillIds: flags.skill });
     io.err(`TaskWeave ${task.id}${flags.demo ? ' [离线脚本演示]' : ''}`);
     const controller = new AbortController();
     const stop = (): void => controller.abort(new Error('用户取消'));

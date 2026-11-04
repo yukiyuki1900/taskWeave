@@ -1,5 +1,6 @@
-import { WorkflowEngine, errorMessage, TaskWeaveError } from '@taskweave/core';
+import { WorkflowEngine, errorMessage, readWorkflowReport, TaskWeaveError } from '@taskweave/core';
 import { HELP, printWorkflow } from '../presentation/workflow.ts';
+import { printWorkflowReport } from '../presentation/workflow-report.ts';
 import type { IO } from '../presentation/task.ts';
 import { TaskStore, loadConfig, loadWorkflow, providerFor, localServices } from '../bootstrap.ts';
 import { parseArgs } from 'node:util';
@@ -21,7 +22,7 @@ export async function workflowMain(argv: string[], io: IO): Promise<number> {
     const [action, id, ...extra] = parsed.positionals;
     const allowed: Record<string, string[]> = {
       create: ['file', 'config'], run: ['file', 'config', 'demo', 'timeout', 'max-steps'], resume: ['config', 'demo', 'timeout', 'max-steps'],
-      show: [], list: [], events: ['after'], accept: ['node', 'attempt', 'note', 'config', 'demo', 'timeout', 'max-steps'],
+      show: [], report: [], list: [], events: ['after'], accept: ['node', 'attempt', 'note', 'config', 'demo', 'timeout', 'max-steps'],
       reject: ['node', 'attempt', 'note', 'config', 'timeout'], answer: ['node', 'attempt', 'answer', 'config', 'demo', 'timeout', 'max-steps'],
       rework: ['node', 'attempt', 'note', 'config'], retry: ['node', 'attempt', 'note', 'config']
     };
@@ -35,8 +36,9 @@ export async function workflowMain(argv: string[], io: IO): Promise<number> {
     if (['accept', 'reject', 'rework', 'retry', 'answer'].includes(action) && (!flags.node || !flags.attempt)) throw new TaskWeaveError('INVALID_OPTION', '请提供 --node 和 --attempt');
     if (['accept', 'reject', 'rework', 'retry'].includes(action) && !flags.note?.trim()) throw new TaskWeaveError('INVALID_REVIEW', '请提供 --note');
     if (action === 'answer' && !flags.answer?.trim()) throw new TaskWeaveError('INVALID_ANSWER', '请提供 --answer');
-    const store = await TaskStore.open(flags.workspace ?? process.cwd());
+    const store = await TaskStore.open(flags.workspace ?? process.cwd(), { create: action !== 'report' });
     const json = Boolean(flags.json);
+    if (action === 'report') { printWorkflowReport(await readWorkflowReport(store, id!), io, json); return 0; }
     if (action === 'show') { printWorkflow(await store.loadWorkflow(id!), io, json); return 0; }
     if (action === 'list') {
       const runs = await store.listWorkflows();

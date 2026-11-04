@@ -54,7 +54,7 @@ export function parseValidationPolicy(value: unknown): ValidationPolicy {
 
 export function parseConfig(value: unknown): RuntimeConfig {
   const config = object(value);
-  keys(config, ['version', 'checks', 'validation']);
+  keys(config, ['version', 'checks', 'validation', 'skills', 'context']);
   if (config.version !== 1) return fail();
   const checks = Object.create(null) as Record<string, CheckDefinition>;
   const definitions = object(config.checks ?? {});
@@ -78,7 +78,27 @@ export function parseConfig(value: unknown): RuntimeConfig {
     if (policy.checks.some(name => !Object.hasOwn(checks, name))) return fail();
     validation[kind] = policy;
   }
-  return { version: 1, checks, validation };
+  const extra: Pick<RuntimeConfig, 'skills' | 'context'> = {};
+  if (config.skills !== undefined) {
+    const catalog = object(config.skills);
+    if (Object.keys(catalog).length > 30) fail();
+    extra.skills = Object.create(null);
+    for (const id of Object.keys(catalog).sort()) {
+      if (!/^[a-z][a-z0-9-]{0,63}$/.test(id)) fail();
+      const spec = object(catalog[id]); keys(spec, ['path']);
+      const file = configRelativePath(spec.path);
+      if (!/(^|\/)SKILL\.md$/.test(file)) fail();
+      extra.skills![id] = { path: file };
+    }
+  }
+  if (config.context !== undefined) {
+    const spec = object(config.context); keys(spec, ['maxCharacters']);
+    const maxCharacters = integer(spec.maxCharacters, 80_000, 200_000);
+    if (maxCharacters < 4_000) fail();
+    extra.context = { maxCharacters };
+  }
+  // Omitted v0.4 options stay omitted so existing v1 config fingerprints remain valid.
+  return { version: 1, checks, validation, ...extra };
 }
 
 export function configHash(config: RuntimeConfig): string { return sha256(JSON.stringify(parseConfig(config))); }

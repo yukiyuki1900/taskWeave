@@ -1,6 +1,6 @@
 {
   "name": "@taskweave/evaluation",
-  "version": "0.3.0-alpha.1",
+  "version": "0.4.0-alpha.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -8,7 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@taskweave/core": "0.3.0-alpha.1",
-    "@taskweave/adapters": "0.3.0-alpha.1"
+    "@taskweave/core": "0.4.0-alpha.1",
+    "@taskweave/adapters": "0.4.0-alpha.1"
   }
 }

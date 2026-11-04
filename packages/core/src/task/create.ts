@@ -23,6 +23,9 @@ export async function createTask(store: StateStore, input: TaskInput, provider: 
   const task: Task = {
     version: 1, id, kind: input.kind,
     ...(input.workflow ? { workflow: { ...input.workflow } } : {}),
+    ...(input.boundSkills?.length ? { skills: input.boundSkills } : {}),
+    ...(input.handoff ? { handoff: input.handoff } : {}),
+    ...(input.contextBudget ? { contextBudget: input.contextBudget } : {}),
     title: input.title?.trim().slice(0, 160) || input.goal.trim().slice(0, 80),
     goal: input.goal.trim(), acceptanceCriteria: input.acceptanceCriteria ?? [],
     validationPolicy: parseValidationPolicy(input.validationPolicy ?? DEFAULT_VALIDATION),

@@ -7,6 +7,7 @@ const layers = {
   '@taskweave/core': ['@taskweave/contracts'],
   '@taskweave/adapters': ['@taskweave/core', '@taskweave/contracts'],
   '@taskweave/evaluation': ['@taskweave/core', '@taskweave/adapters'],
+  '@taskweave/server': ['@taskweave/contracts', '@taskweave/core', '@taskweave/adapters'],
   '@taskweave/cli': ['@taskweave/core', '@taskweave/contracts', '@taskweave/adapters', '@taskweave/evaluation']
 };
 const workspaces = new Map();

@@ -1,4 +1,4 @@
-# v0.3 工作流
+# 工作流（v0.3+）
 
 工作流定义固定节点及依赖，由本地调度器串行执行就绪节点。节点复用 v0.2 TaskEngine、独立验证与人工验收。没有后台服务、分布式 Worker 或并行执行。
 
@@ -31,6 +31,16 @@ node --env-file=.env bin/taskweave.mjs workflow run \
 ```
 
 需求通过文件字段检查后等待人工确认；接受后自动实现、验证、编写并运行测试，最后等待文档验收。按真实结果检查产物；本版本没有配置真实模型密钥做端到端验证，示例是可运行入口，不是效果承诺。
+
+### 模型请求失败排查
+
+终端会显示当前失败节点的原因；`workflow show <run-id> --workspace work --json` 可查看当前 attempt 的 `error`，普通 `show <task-id> --workspace work --json` 可查看任务使用的 provider、步数与用量。`steps` 在请求前递增，不能直接当作成功响应次数。
+
+HTTP 400 表示请求被模型服务拒绝，增加 `--timeout` 无法解决。适配器只读取最多 16 KiB 的错误 JSON，将可识别的 `reasoning_content`、工具调用历史、输出长度或思考参数问题转换为固定提示，不回显服务端原文；未知错误保留通用 HTTP 状态。提示用于缩小排查范围，不证明唯一原因。
+
+工具结果必须对应历史 assistant 消息中保留的 `tool_calls`。旧版本曾因待执行队列与历史共用数组，在消费队列时删掉历史调用；修复后两者分离。若旧运行的调用记录已丢失，更新代码后使用 `workflow retry` 再 `workflow resume` 创建新尝试，不直接恢复损坏的历史。retry 不会删除旧文件，新尝试仍须核对文件及其 hash。
+
+对于 DeepSeek 思考模式的工具调用，需按[官方说明](https://api-docs.deepseek.com/guides/thinking_mode/)回传模型返回的 `reasoning_content`。执行器保留该字段的原值，包括空字符串和 null；模型未返回该字段时不会补造内容。修复前的旧检查点可能已经丢失字段，失败节点应使用下文的 `workflow retry`，再 `workflow resume` 创建新尝试；单独 resume 不会重跑失败节点。
 
 ## 定义与校验
 
@@ -102,7 +112,7 @@ npm start -- workflow resume <run-id> --workspace work
 
 retry / rework 先标记目标节点及所有传递下游的当前 attempt 为 invalidated，清空这些节点的当前引用，保留历史与原因；无关分支保持有效。之后 resume 为就绪节点创建新 attempt、新 task 和新的回执命名空间，每节点最多 50 次尝试。
 
-返工不删除、回滚或自动合并原有文件。旧产物在历史记录中过期，但仍可能保留于工作区；新节点接收当前已验收依赖的回答摘要和产物索引，需要按 hash 校验更新文件。这是串行共享工作区模型，不提供产物快照隔离、Git worktree 合并或任意外部进程写入的防护。
+返工不删除、回滚或自动合并原有文件。旧产物在历史记录中过期，但仍可能保留于工作区；v0.4 新建下游节点接收绑定来源 task/attempt、验证 ID 和产物 hash 的结构化交接；直接交接文件在该 attempt 中只读，修改上游需显式返工。旧任务保留原有目标和输入表示。这是串行共享工作区模型，不提供产物快照隔离、Git worktree 合并或任意外部进程写入的防护。
 
 ## 检查点与恢复
 
@@ -124,8 +134,38 @@ retry / rework 先标记目标节点及所有传递下游的当前 attempt 为 i
 
 ## 其他命令与退出码
 
+### 运行报告
+
+```bash
+node bin/taskweave.mjs workflow report <run-id> --workspace work
+node bin/taskweave.mjs workflow report <run-id> --workspace work --json
+```
+
+report 读取已有 v1 快照及事件，不需要模型密钥和验证配置，不调用模型、运行检查、验收、恢复或写入工作区；不存在的工作区会报错，不会创建目录。旧运行可以直接查看，不需要重新执行。默认输出终端摘要，`--json` 输出完整报告，可用 shell 重定向保存。
+
+| 报告字段 | 统计口径 |
+| --- | --- |
+| `status` / `summary.succeededNodes` | 本次运行状态和当前成功节点数；单次报告不计算跨运行成功率 |
+| `summary.current` | 只汇总各节点当前 attempt 的 Token、模型轮次及工具次数 |
+| `summary.total` | 汇总本运行所有 attempt，包括失败和已失效的尝试；不包含工作区中的其他运行 |
+| `summary.human.requests` | 工作流节点请求输入或验收的事件数；验收时重跑检查产生的任务等待事件不重复计数 |
+| `summary.human.actions` | 用户提交回答、接受、退回、重试和返工的事件数；接受操作不等于该次重新检查通过 |
+| `summary.timing.elapsedMs` | 从工作流创建到本轮完成/失败/取消事件；未停止的运行计至报告生成时间 |
+| `summary.timing.executionMs` | 根据任务启动、验证及终止事件计算的已记录执行区间并集，包含模型、工具、验证；不等于模型推理耗时 |
+| `summary.timing.humanWaitMs` | 任务等待输入/验收至回答、重新验证、接受或失效的区间并集，排除与其他节点执行重叠的时间 |
+| `summary.timing.unattributedMs` | 总时间中未归入以上两项的部分，包含调度开销、暂停和未观测间隔；三项相加等于总时间 |
+| `nodes[].attempts[]` | 各次尝试的 ID、当前/历史标记、任务状态、Provider、错误、用量及时间 |
+| `warnings` / `summary.dataComplete` | 缺失、损坏或归属不匹配的记录会明确提示，用量只累计可读取部分 |
+| `summary.timing.complete` | 无闭合终止事件或时间记录不完整时为 false；开放执行段只计至最后事件，不把崩溃后的时间推定为执行时间 |
+
+模型轮次包含失败请求；适配器内部 HTTP 重试不单独计数。Token 仅累计服务端已返回的 usage，缺少 usage 时的 0 不意味着没有费用；报告不估算金额。工具次数来自工具开始/失败事件，可能包含恢复回放，不包含独立验证命令。运行中读取为尽力而为的观测，不是跨文件原子快照；完整运行后查看更适合比较。
+
 `workflow create --file` 只保存定义，不调用模型。`list`、`show`、`events --after N` 不需要模型密钥。`--json` 输出完整状态，进度写入 stderr。
 
 `--timeout` 限制整次 CLI 操作，默认 300 秒、最大 3600 秒。`--max-steps` 是每个节点任务的累计模型调用上限，1 到 200，不是整个工作流的总 Token 预算。单次调用退出后没有后台调度器；等待、返工后用对应操作或 resume 继续。
 
 退出码 0 表示命令成功，包括等待输入和等待验收；失败为 1，取消为 130。自动化调用同时检查 JSON 中的 status。
+
+## v0.4 的交接与 Skill
+
+节点定义可用 `"skills": ["doc-style"]` 显式选择配置中注册的本地 Skill。`summary <task-id> --json` 查看节点任务的带证据摘要、交接和 Skill 绑定；执行与验收会校验版本及来源。操作步骤、只读输入限制和完整示例见 [上下文与 Skill](context-and-skills.md)。

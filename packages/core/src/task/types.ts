@@ -1,8 +1,14 @@
 import type { WorkflowRef, TaskKind, TaskStatus, Artifact, ValidationPolicy, ValidationRun } from '@taskweave/contracts';
 import type { Message, ToolCall } from '../agent/protocol.ts';
+import type { ContextHandoff, SkillBinding, TaskSummary } from '@taskweave/contracts';
 
 export interface Task {
   workflow?: WorkflowRef;
+  handoff?: ContextHandoff;
+  summary?: TaskSummary;
+  summaryHistory?: TaskSummary[];
+  skills?: SkillBinding[];
+  contextBudget?: number;
   version: 1;
   id: string;
   kind: TaskKind;
@@ -42,4 +48,8 @@ export interface TaskInput {
   maxSteps?: number;
   validationPolicy?: ValidationPolicy;
   executionConfigHash?: string;
+  skillIds?: string[];
+  boundSkills?: SkillBinding[];
+  handoff?: ContextHandoff;
+  contextBudget?: number;
 }

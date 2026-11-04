@@ -12,6 +12,7 @@ export interface WorkflowNodeDefinition {
   acceptanceCriteria: string[];
   validationPolicy?: ValidationPolicy;
   maxSteps: number;
+  skills?: string[];
 }
 export interface WorkflowDefinition { version: 1; name: string; nodes: WorkflowNodeDefinition[] }
 export type WorkflowStatus = 'pending' | 'running' | 'waiting_input' | 'waiting_acceptance' | 'failed' | 'cancelled' | 'completed';

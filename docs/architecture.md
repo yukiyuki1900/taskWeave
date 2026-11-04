@@ -1,4 +1,4 @@
-# TaskWeave v0.3 架构
+# TaskWeave v0.4 架构
 
 ## 模块职责
 
@@ -6,10 +6,12 @@
 
 | 模块 | 职责 |
 | --- | --- |
+| `apps/server` | 本地只读 HTTP 查询、观察版本、对外视图投影；不执行任务 |
 | `apps/cli` | 参数、信号、终端及 JSON 输出、配置读取与依赖组装 |
 | `core/task` | 任务初始化、稳定子任务身份与创建事件 |
-| `core/workflow` | 定义校验、串行调度、attempt 有效性、返工与恢复 |
-| `core/agent` | 统一执行循环、上下文、预算、暂停与检查点 |
+| `core/workflow` | 定义校验、串行调度、attempt 有效性、结构化交接、返工与恢复 |
+| `core/agent` | 统一执行循环、上下文、证据摘要、预算、暂停与检查点 |
+| `core/skills` | 显式选择、受限元数据、版本与 hash 绑定，不扩大权限 |
 | `core/tools` | 工具声明、运行时参数校验、调用与结果处理 |
 | `core/validation` / `core/artifacts` | 验证策略、命令执行账本、证据和产物一致性 |
 | `core/ports` | StateStore、WorkspacePort、ModelProvider、CheckRunner 接口 |
@@ -86,9 +88,13 @@ stateDiagram-v2
 
 ## 上下文与记忆
 
-快照保留完整对话，模型上下文默认最多约 80,000 字符。始终保留初始指令与目标，以完整 assistant/tool 轮次为单位丢弃最早的历史，避免留下没有对应调用的工具结果；裁剪后插入产物和子任务索引。最新轮次仍然超预算会明确报错。
+快照保留完整对话，模型上下文默认最多 80,000 字符。固定保留初始目标、用户选中 Skill 和结构化交接。按完整 assistant/tool 轮次压缩，有效模型摘要只替代已覆盖历史；没有有效摘要时明确使用产物索引回退。未覆盖历史或最近轮次仍超预算时失败，不切断工具配对。字符预算不是精确 Token 预算。
 
-字符预算不能精确对应 tokenizer；早期决策只保存在完整快照中，不会自动变成语义记忆。模型可以按索引重新读取文件。后续可加入带证据引用的任务摘要及供应商 token 估算器。
+`record_summary` 对模型提炼的事实、决策、约束与未决问题解析真实证据引用，保存来源消息前缀 hash、工具消息位置及产物 hash；其语义仍需独立验证。最终验证补充回答 hash 与检查索引，无有效模型摘要时标记 extractive。摘要写入工具回执，可在中断后恢复，旧版本保留最近 5 个。
+
+新下游 Task 的 handoff 绑定直接依赖的 task/attempt、摘要、验证 ID、人工验收和产物 hash；交接超过预算明确失败。执行、工具和验收校验来源及文件一致性。直接交接文件只读，上游修改通过 rework 产生新下游 attempt，尚无文件快照隔离。
+
+`core/skills` 通过 WorkspacePort 读取用户显式选择的本地 SKILL.md，任务绑定注册 ID、版本和 hash。正文作为有来源的用户级任务资料注入，不增添工具或命令。旧检查点缺省这些字段，不追溯重写；详情见 [上下文与 Skill](guides/context-and-skills.md)。
 
 ## 并发与权限
 
@@ -106,3 +112,7 @@ stateDiagram-v2
 - 调度：在现有串行 DAG 上增加独立工作区、并行配额和合并机制；分布式执行需要任务所有权与租约。
 
 v0.3 使用固定 DAG 串行调度，每个节点的 attempt 对应独立 Task 与回执；验证 ID 仅关联该 Task 的一轮独立检查。节点状态与 attempt 隔离、返工及持久化顺序见 [工作流说明](guides/workflows.md)。不把任务类型命名为多个独立 Agent。
+
+## v0.5 查询层
+
+只读 Server 使用 ReadStateStore 与 ReadOnlyWorkspace，复用 readWorkflowReport 的统计，不进入 Agent Loop 或工作流控制。HTTP 模型在 contracts/http，Server 按白名单映射；查询无锁、无写入，按请求保留各对象观察序号。API 使用与历史产物限制见 [只读 API](guides/read-api.md)。

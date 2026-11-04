@@ -1,6 +1,6 @@
 {
   "name": "@taskweave/cli",
-  "version": "0.3.0-alpha.1",
+  "version": "0.4.0-alpha.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -8,10 +8,10 @@
     ".": "./src/main.ts"
   },
   "dependencies": {
-    "@taskweave/core": "0.3.0-alpha.1",
-    "@taskweave/contracts": "0.3.0-alpha.1",
-    "@taskweave/adapters": "0.3.0-alpha.1",
-    "@taskweave/evaluation": "0.3.0-alpha.1",
+    "@taskweave/core": "0.4.0-alpha.1",
+    "@taskweave/contracts": "0.4.0-alpha.1",
+    "@taskweave/adapters": "0.4.0-alpha.1",
+    "@taskweave/evaluation": "0.4.0-alpha.1",
     "tsx": "4.23.15"
   },
   "bin": {

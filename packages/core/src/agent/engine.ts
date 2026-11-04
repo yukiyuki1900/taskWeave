@@ -1,3 +1,6 @@
+import { selectSkills, skillContext } from '../skills/index.ts';
+import { assertHandoff } from '../workflow/handoff.ts';
+import { installSummary, summaryValid } from './summary.ts';
 import { assertWorkflowTask } from '../workflow/attempt-guard.ts';
 import { createTask } from '../task/create.ts';
 import { buildContext } from '../agent/context.ts';
@@ -6,7 +9,7 @@ import { argumentObject, availableTools, executeTool } from '../tools/index.ts';
 import { configHash, DEFAULT_VALIDATION, parseConfig } from '../config/index.ts';
 import { bindConfig, validateLocked } from '../validation/index.ts';
 import { errorMessage, TaskWeaveError } from '../types.ts';
-import type { Artifact, ModelProvider, RuntimeConfig, Task, TaskEvent, TaskInput, ToolResult } from '../types.ts';
+import type { Artifact, ModelProvider, RuntimeConfig, Task, TaskEvent, TaskInput, TaskSummary, ToolResult } from '../types.ts';
 
 export interface RunOptions {
   answer?: string;
@@ -21,7 +24,7 @@ export class TaskEngine {
   constructor(readonly services: RuntimeServices, readonly store: StateStore, readonly provider: ModelProvider, config: RuntimeConfig = parseConfig({ version: 1 })) { this.config = parseConfig(config); }
 
   async create(input: TaskInput): Promise<Task> {
-    return this.store.withLock(() => createTask(this.store, { ...input, validationPolicy: input.validationPolicy ?? this.config.validation[input.kind] ?? DEFAULT_VALIDATION, executionConfigHash: configHash(this.config) }, this.provider.id));
+    return this.store.withLock(async () => createTask(this.store, { ...input, boundSkills: await selectSkills(this.services.workspace(this.store.workspace), this.config, input.skillIds), contextBudget: this.config.context?.maxCharacters, validationPolicy: input.validationPolicy ?? this.config.validation[input.kind] ?? DEFAULT_VALIDATION, executionConfigHash: configHash(this.config) }, this.provider.id));
   }
 
   async run(id: string, options: RunOptions = {}): Promise<Task> {
@@ -57,7 +60,8 @@ export class TaskEngine {
     };
     const recordResult = (result: ToolResult): void => {
       if (!result.ok || !result.data || typeof result.data !== 'object') return;
-      const data = result.data as { artifact?: Artifact; taskId?: string };
+      const data = result.data as { artifact?: Artifact; taskId?: string; summary?: TaskSummary };
+      if (data.summary) installSummary(task, data.summary);
       if (data.artifact) task.artifacts = [...task.artifacts.filter(file => file.path !== data.artifact!.path), data.artifact];
       if (data.taskId && !task.childTaskIds.includes(data.taskId)) task.childTaskIds.push(data.taskId);
     };
@@ -87,6 +91,8 @@ export class TaskEngine {
       const workspace = this.services.workspace(this.store.workspace);
       while (true) {
         signal.throwIfAborted();
+        await assertHandoff(this.store, workspace, task);
+        await skillContext(workspace, this.config, task.skills);
         while (task.pendingCalls.length) {
           signal.throwIfAborted();
           const call = task.pendingCalls[0];
@@ -115,6 +121,7 @@ export class TaskEngine {
           // Receipt precedes message checkpoint; replay reuses it after a crash.
           if (!cached) await this.store.saveReceipt(task.id, callKey, result);
           recordResult(result);
+          if (call.function.name === 'record_summary' && result.ok) await emit('summary.recorded', { summaryId: task.summary?.id, replayed: Boolean(cached) });
           task.messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(result) });
           task.pendingCalls.shift();
           await emit(result.ok ? 'tool.completed' : 'tool.failed', { name: call.function.name, callId: call.id, replayed: Boolean(cached), ...(result.error ? { code: result.error.code } : {}) });
@@ -125,7 +132,13 @@ export class TaskEngine {
           await emit('task.budget_exceeded', { steps: task.steps });
           return task;
         }
-        const context = buildContext(task);
+        await assertHandoff(this.store, workspace, task);
+        const instructions = await skillContext(workspace, this.config, task.skills);
+        if (task.summary?.status === 'valid' && !await summaryValid(task, task.summary, workspace)) {
+          task.summary.status = 'stale'; task.summary.staleReason = '源消息或证据已变化';
+          await emit('summary.invalidated', { summaryId: task.summary.id });
+        }
+        const context = buildContext(task, task.contextBudget, instructions);
         if (context.archivedRounds) await emit('context.compacted', { archivedRounds: context.archivedRounds });
         task.steps++;
         await emit('model.started', { step: task.steps });
@@ -136,9 +149,10 @@ export class TaskEngine {
         task.messages.push({
           role: 'assistant', content: turn.content,
           ...(turn.toolCalls.length ? { tool_calls: turn.toolCalls } : {}),
-          ...(turn.reasoningContent ? { reasoning_content: turn.reasoningContent } : {})
+          ...(turn.reasoningContent !== undefined ? { reasoning_content: turn.reasoningContent } : {})
         });
-        task.pendingCalls = turn.toolCalls;
+        // Consuming the execution queue must not remove calls from assistant history.
+        task.pendingCalls = [...turn.toolCalls];
         if (!turn.toolCalls.length) {
           if (!turn.content?.trim()) throw new TaskWeaveError('EMPTY_MODEL_RESPONSE', '模型返回了空回答');
           task.answer = turn.content;

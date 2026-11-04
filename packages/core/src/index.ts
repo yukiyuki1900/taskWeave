@@ -6,6 +6,7 @@ export { assertWorkflowTask } from './workflow/attempt-guard.ts';
 export { WorkflowEngine, currentAttempt, applyTaskResult } from './workflow/engine.ts';
 export type { WorkflowRunOptions, WorkflowProvider } from './workflow/engine.ts';
 export { parseWorkflow, workflowTaskId } from './workflow/definition.ts';
+export { readWorkflowReport } from './workflow/report.ts';
 export { parseConfig, parseValidationPolicy, configHash, DEFAULT_VALIDATION } from './config/index.ts';
 export { TaskReviewer, validateLocked } from './validation/index.ts';
 export { runCheck, runChecks } from './validation/checks.ts';
@@ -18,3 +19,7 @@ export * from './errors.ts';
 export { TASK_KINDS, isTaskKind } from '@taskweave/contracts';
 export type * from './types.ts';
 export type * from './ports/index.ts';
+
+export { loadSkill, selectSkills, skillContext } from './skills/index.ts';
+export { recordSummary, summaryValid, finalizeSummary, installSummary } from './agent/summary.ts';
+export { createHandoff, assertHandoff } from './workflow/handoff.ts';

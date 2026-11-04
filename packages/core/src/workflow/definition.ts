@@ -20,7 +20,7 @@ export function parseWorkflow(raw: unknown): WorkflowDefinition {
   const name = text(value.name, 160);
   const seen = new Set<string>();
   const nodes = value.nodes.map(rawNode => {
-    const node = object(rawNode, ['id', 'title', 'kind', 'goal', 'dependsOn', 'acceptanceCriteria', 'validationPolicy', 'maxSteps']);
+    const node = object(rawNode, ['id', 'title', 'kind', 'goal', 'dependsOn', 'acceptanceCriteria', 'validationPolicy', 'maxSteps', 'skills']);
     const id = text(node.id, 64);
     if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(id) || seen.has(id) || !isTaskKind(node.kind)) return fail();
     seen.add(id);
@@ -29,7 +29,8 @@ export function parseWorkflow(raw: unknown): WorkflowDefinition {
     const maxSteps = node.maxSteps ?? 24;
     if (!Array.isArray(dependsOn) || dependsOn.length > 30 || dependsOn.some(item => typeof item !== 'string') || new Set(dependsOn).size !== dependsOn.length
       || !Array.isArray(criteria) || criteria.length > 12 || !Number.isSafeInteger(maxSteps) || Number(maxSteps) < 1 || Number(maxSteps) > 200) return fail();
-    return { id, title: text(node.title ?? id, 160), kind: node.kind, goal: text(node.goal, 8_000), dependsOn: dependsOn as string[], acceptanceCriteria: criteria.map(item => text(item, 500)), maxSteps: Number(maxSteps), ...(node.validationPolicy === undefined ? {} : { validationPolicy: parseValidationPolicy(node.validationPolicy) }) };
+    if (node.skills !== undefined && (!Array.isArray(node.skills) || node.skills.length > 3 || new Set(node.skills).size !== node.skills.length || node.skills.some(id => typeof id !== 'string' || !/^[a-z][a-z0-9-]{0,63}$/.test(id)))) return fail();
+    return { ...(node.skills === undefined ? {} : { skills: node.skills as string[] }), id, title: text(node.title ?? id, 160), kind: node.kind, goal: text(node.goal, 8_000), dependsOn: dependsOn as string[], acceptanceCriteria: criteria.map(item => text(item, 500)), maxSteps: Number(maxSteps), ...(node.validationPolicy === undefined ? {} : { validationPolicy: parseValidationPolicy(node.validationPolicy) }) };
   });
   if (nodes.some(node => node.dependsOn.some(id => id === node.id || !seen.has(id)))) return fail();
   const ordered = new Set<string>();

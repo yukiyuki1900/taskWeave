@@ -1,3 +1,6 @@
+import { skillContext } from '../skills/index.ts';
+import { assertHandoff } from '../workflow/handoff.ts';
+import { finalizeSummary } from '../agent/summary.ts';
 import { verifyArtifacts } from '../artifacts/verify.ts';
 import { assertWorkflowTask } from '../workflow/attempt-guard.ts';
 import { randomUUID } from 'node:crypto';
@@ -21,6 +24,8 @@ export function bindConfig(task: Task, config: RuntimeConfig): void {
 export async function validateLocked(services: RuntimeServices, task: Task, store: StateStore, config: RuntimeConfig, options: ValidationOptions = {}): Promise<Task> {
   await assertWorkflowTask(store, task);
   bindConfig(task, config);
+  await skillContext(services.workspace(store.workspace), config, task.skills);
+  await assertHandoff(store, services.workspace(store.workspace), task);
   if (!task.answer?.trim()) throw new TaskWeaveError('NO_GENERATED_RESULT', '任务尚无最终回答，请先 run / resume');
   const signal = options.signal ?? new AbortController().signal;
   const emit = async (type: string, data: Record<string, unknown> = {}): Promise<void> => {
@@ -60,10 +65,14 @@ export async function validateLocked(services: RuntimeServices, task: Task, stor
     } catch (error) { items.push({ name: `rule:${index}:${rule.type}:${rule.path}`, passed: false, detail: errorMessage(error) }); }
   }
   signal.throwIfAborted();
+  await skillContext(workspace, config, task.skills);
+  await assertHandoff(store, workspace, task);
   task.validation.items = items;
   task.validation.status = items.every(item => item.passed) ? 'passed' : 'failed';
   task.validation.finishedAt = new Date().toISOString();
   task.status = task.validation.status === 'failed' ? 'validation_failed' : policy.requireApproval ? 'waiting_acceptance' : 'completed';
+  const summary = await finalizeSummary(task, workspace);
+  await emit('summary.generated', { summaryId: summary.id, kind: summary.kind, validationId: task.validation.id });
   // Persist the result and resulting task state together, before any terminal event callback.
   await emit(`validation.${task.validation.status}`, { validationId: task.validation.id, passed: items.filter(item => item.passed).length, total: items.length });
   await emit(`task.${task.status}`, { validationId: task.validation.id, usage: task.usage, artifactCount: task.artifacts.length, childTaskCount: task.childTaskIds.length });

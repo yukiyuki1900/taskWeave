@@ -11,4 +11,6 @@ export interface RuntimeConfig {
   version: 1;
   checks: Record<string, CheckDefinition>;
   validation: Partial<Record<TaskKind, ValidationPolicy>>;
+  skills?: Record<string, { path: string }>;
+  context?: { maxCharacters: number };
 }

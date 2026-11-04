@@ -1,6 +1,7 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { TaskWeaveError } from '@taskweave/core/types';
 import type { Message, ModelProvider, ModelTurn, ToolCall, ToolDefinition } from '@taskweave/core/types';
+import { badRequestHint } from './http-error.ts';
 
 export interface ProviderOptions {
   baseUrl: string;
@@ -39,7 +40,7 @@ export function parseModelTurn(value: unknown): ModelTurn {
   const count = (value: unknown): number => Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : 0;
   return {
     content, toolCalls,
-    ...(typeof message.reasoning_content === 'string' ? { reasoningContent: message.reasoning_content } : {}),
+    ...(typeof message.reasoning_content === 'string' || message.reasoning_content === null ? { reasoningContent: message.reasoning_content } : {}),
     usage: { input: count(usage.prompt_tokens), output: count(usage.completion_tokens) }
   };
 }
@@ -63,22 +64,24 @@ export class CompatibleProvider implements ModelProvider {
     const fetcher = this.options.fetch ?? fetch;
     for (let attempt = 0; attempt < 3; attempt++) {
       signal.throwIfAborted();
+      const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(this.options.requestTimeoutMs ?? 90_000)]);
       const response = await fetcher(this.endpoint, {
         method: 'POST',
         headers: { authorization: `Bearer ${this.options.apiKey}`, 'content-type': 'application/json' },
         body: JSON.stringify({ model: this.options.model, messages, tools, tool_choice: 'auto', stream: false, max_tokens: 4096 }),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(this.options.requestTimeoutMs ?? 90_000)])
+        signal: requestSignal
       });
       if (!response.ok) {
-        await response.body?.cancel();
+        const hint = response.status === 400 ? await badRequestHint(response, requestSignal) : '';
+        if (response.status !== 400) await response.body?.cancel();
         if ((response.status === 429 || response.status >= 500) && attempt < 2) {
           const retryAfter = Number(response.headers.get('retry-after'));
           const ms = retryAfter > 0 ? Math.min(retryAfter * 1000, 10_000) : 300 * 2 ** attempt;
           await delay(ms, undefined, { signal });
           continue;
         }
-        // Never echo upstream bodies: they may contain credentials or private inputs.
-        throw new TaskWeaveError('PROVIDER_HTTP', `模型服务返回 HTTP ${response.status}`);
+        // Only fixed hints leave the adapter; upstream bodies may contain private inputs.
+        throw new TaskWeaveError('PROVIDER_HTTP', `模型服务返回 HTTP ${response.status}${hint ? `；${hint}` : ''}`);
       }
       const reader = response.body?.getReader();
       if (!reader) throw new TaskWeaveError('INVALID_MODEL_RESPONSE', '模型响应没有正文');

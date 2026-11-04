@@ -1,0 +1,15 @@
+{
+  "name": "@taskweave/server",
+  "version": "0.4.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@taskweave/contracts": "0.4.0-alpha.1",
+    "@taskweave/core": "0.4.0-alpha.1",
+    "@taskweave/adapters": "0.4.0-alpha.1",
+    "tsx": "4.23.15"
+  },
+  "bin": { "taskweave-server": "bin/taskweave-server.mjs" }
+}

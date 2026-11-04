@@ -8,3 +8,5 @@ export { CompatibleProvider, parseModelTurn } from './providers/compatible.ts';
 export type { ProviderOptions } from './providers/compatible.ts';
 export { DemoProvider } from './providers/demo.ts';
 export { localServices } from './runtime.ts';
+
+export { FileStateReader, ReadOnlyWorkspace } from './storage/filesystem/read-only.ts';
