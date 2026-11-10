@@ -1,5 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { isBuiltin } from 'node:module';
 import ts from 'typescript';
 
 const layers = {
@@ -7,6 +8,7 @@ const layers = {
   '@taskweave/core': ['@taskweave/contracts'],
   '@taskweave/adapters': ['@taskweave/core', '@taskweave/contracts'],
   '@taskweave/evaluation': ['@taskweave/core', '@taskweave/adapters'],
+  '@taskweave/web': ['@taskweave/contracts'],
   '@taskweave/server': ['@taskweave/contracts', '@taskweave/core', '@taskweave/adapters'],
   '@taskweave/cli': ['@taskweave/core', '@taskweave/contracts', '@taskweave/adapters', '@taskweave/evaluation']
 };
@@ -25,8 +27,8 @@ async function scan(directory, owner) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const file = path.join(directory, entry.name);
     if (entry.isDirectory()) { await scan(file, owner); continue; }
-    if (!/\.(ts|mjs)$/.test(file)) continue;
-    const source = ts.createSourceFile(file, await readFile(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    if (!/\.(tsx?|mjs)$/.test(file)) continue;
+    const source = ts.createSourceFile(file, await readFile(file, 'utf8'), ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
     const report = message => errors.push(`${file}: ${message}`);
     const check = specifier => {
       if (specifier.startsWith('.')) {
@@ -44,6 +46,7 @@ async function scan(directory, owner) {
         if (!target || !Object.hasOwn(target.manifest.exports, key)) report(`引用未公开的包入口 ${specifier}`);
         return;
       }
+      if (owner.manifest.name === '@taskweave/web' && isBuiltin(specifier)) report(`Web 不允许 Node.js 依赖 ${specifier}`);
       if (owner.manifest.name === '@taskweave/contracts') report(`协议包不允许外部依赖 ${specifier}`);
       if (owner.manifest.name === '@taskweave/core' && !['node:crypto', 'node:path'].includes(specifier)) report(`核心包不允许直接访问基础设施 ${specifier}`);
     };

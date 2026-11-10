@@ -2,7 +2,7 @@ import { currentAttempt } from '@taskweave/core';
 import type { WorkflowRun } from '@taskweave/contracts';
 import type { IO } from './task.ts';
 
-export const HELP = `TaskWeave workflow v0.4.0-alpha.1
+export const HELP = `TaskWeave workflow v0.5.0-alpha.1
 
 workflow create --file examples/workflows/delivery.json --workspace work
 workflow run    --file examples/workflows/demo.json --workspace work --demo

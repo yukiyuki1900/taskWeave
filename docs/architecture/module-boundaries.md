@@ -1,6 +1,6 @@
 # 模块边界与目录迁移
 
-目录整理始于 v0.3，保持本地单用户、固定 DAG 串行执行。v0.5 MR 1 新增只读 Server；尚无独立 Runtime、Gateway 或 Web 应用。只在实现对应功能时建立应用目录。
+目录整理始于 v0.3，保持本地单用户、固定 DAG 串行执行。v0.5 MR 1 新增只读 Server，MR 2 新增 Web，MR 3 新增静态回放；尚无独立 Runtime 或 Gateway。只在实现对应功能时建立应用目录。
 
 ## 工作区结构
 
@@ -17,6 +17,15 @@ apps/server/src/
   presentation/          对外展示字段白名单
   bootstrap.ts           组装只读存储与文件读取器
   server.ts / main.ts    本地 HTTP 适配与启动
+  web.ts                 显式构建目录的只读静态托管
+apps/web/src/
+  data/                  同源查询、轮询、路由与事件合并
+  pages/                 工作流/任务列表与工作流详情
+  components/            DAG、指标、任务页签与时间线
+  demo/                  API 视图录制、只读静态适配与回放控制
+scripts/showcase/        固定脚本全流程、API 录制、静态托管与浏览器捕获
+scripts/release/         已提交源码白名单归档与 SHA-256
+  app.tsx / main.tsx      浏览器路由与 React 入口
 packages/contracts/src/  http 展示模型、task、workflow、events、artifact、validation 协议
 packages/core/src/
   task/                  任务类型、初始化、稳定身份
@@ -46,13 +55,15 @@ tests/e2e/              CLI 与完整工作流测试
 - core 依赖 contracts；不导入 adapters、CLI、evaluation、文件系统、HTTP 或子进程。
 - adapters 实现 core 的 ports，可以依赖 core 与 contracts。
 - evaluation 组合 core 与 adapters，提供独立的离线评测宿主。
+- Web 只依赖 contracts 展示类型，不导入 Node.js、core、adapters 或 Server；浏览器单独类型检查。
 - Server 组合 contracts/core/adapters，使用 ReadStateStore 和只读文件端口；不依赖 CLI 或 evaluation。
 - CLI 组合上述能力；参数、环境变量、进程信号和展示留在 CLI。
 
-core 使用 Node.js crypto 生成身份与指纹，使用 path 做纯路径配置校验；这两个内置模块不读写外部资源。core 不承诺可直接运行在浏览器中。contracts 不依赖 Node.js，可供未来 Web 复用。
+core 使用 Node.js crypto 生成身份与指纹，使用 path 做纯路径配置校验；这两个内置模块不读写外部资源。core 不承诺可直接运行在浏览器中。contracts 不依赖 Node.js，由 Web 复用。
 
 ```mermaid
 flowchart TD
+  Web[apps/web] --> Contracts
   Server[apps/server] --> Core
   Server --> Adapters
   Server --> Contracts
@@ -92,7 +103,7 @@ flowchart TD
 
 ## 调用方迁移
 
-在仓库根执行 `npm ci`，npm 会创建本地 workspace 链接。各包仍由 tsx 执行 TypeScript，无需发布或构建。
+在仓库根执行 `npm ci`，npm 会创建本地 workspace 链接。后端包仍由 tsx 执行 TypeScript，无需发布或构建；Web 通过 Vite 构建后由 Server 托管，见 [Web 指南](../guides/web.md)。
 
 ```ts
 import { TaskEngine } from '@taskweave/core';

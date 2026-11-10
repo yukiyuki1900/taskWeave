@@ -1,4 +1,4 @@
-# TaskWeave v0.4 架构
+# TaskWeave v0.5 架构
 
 ## 模块职责
 
@@ -6,7 +6,8 @@
 
 | 模块 | 职责 |
 | --- | --- |
-| `apps/server` | 本地只读 HTTP 查询、观察版本、对外视图投影；不执行任务 |
+| `apps/server` | 本地只读 HTTP 查询、观察版本、对外视图投影与可选静态托管；不执行任务 |
+| `apps/web` | 浏览器只读工作台：列表、DAG、详情、指标、产物与增量事件；仅依赖展示协议 |
 | `apps/cli` | 参数、信号、终端及 JSON 输出、配置读取与依赖组装 |
 | `core/task` | 任务初始化、稳定子任务身份与创建事件 |
 | `core/workflow` | 定义校验、串行调度、attempt 有效性、结构化交接、返工与恢复 |
@@ -116,3 +117,12 @@ v0.3 使用固定 DAG 串行调度，每个节点的 attempt 对应独立 Task �
 ## v0.5 查询层
 
 只读 Server 使用 ReadStateStore 与 ReadOnlyWorkspace，复用 readWorkflowReport 的统计，不进入 Agent Loop 或工作流控制。HTTP 模型在 contracts/http，Server 按白名单映射；查询无锁、无写入，按请求保留各对象观察序号。API 使用与历史产物限制见 [只读 API](guides/read-api.md)。
+
+MR 2 的 apps/web 通过同源 GET 查询，不持有存储或执行能力。Server 的 `--web` 显式托管已构建静态文件；前端路由在 hash 中，API 未知路由不回退 HTML。轮询、历史 attempt 和预览限制见 [Web 指南](guides/web.md)。
+
+
+## 静态展示与录制回放
+
+MR 3 在 Web 引入 DataSourceContext，live 使用原只读 API，demo 使用录制的同一 DTO。切换阶段重建展示和查询，事件游标不会跨阶段沿用；未知记录明确返回错误，不降级连接真实工作区。生产工作区构建不包含录制载荷，静态 Demo 单独构建。
+
+录制器是开发脚本，组合真实 WorkflowEngine、固定 ShowcaseProvider 和 Server 的内存 API；不在浏览器复制调度、验收或返工规则。它仅接受全新工作区，不是通用个人数据导出器。录制视图包含录制时的文本产物，不改变真实执行缺少历史产物版本库的事实。详情见 [Demo](demo/README.md)。

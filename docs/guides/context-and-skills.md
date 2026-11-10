@@ -95,4 +95,4 @@ SKILL.md 必须有 name、description、version 三个单行 frontmatter 字段�
 2. 保存 `workflow report <run-id> --json` 的总 Token、执行耗时、人工等待和介入次数，同时检查 `summary` 中的来源与摘要类型。
 3. 记录检查通过率及人工评审结论，区分模型摘要与提取式回退；多次运行再判断效果。
 
-尚不包含向量检索、长期记忆、Skill 自动推荐、MCP、产物快照隔离或 Web 工作台。
+尚不包含向量检索、长期记忆、Skill 自动推荐、MCP、产物快照隔离。Web 工作台已在 v0.5 提供，见 [Web 指南](web.md)。

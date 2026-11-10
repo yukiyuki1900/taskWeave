@@ -1,10 +1,28 @@
-# TaskWeave · 织程
+# TaskWeave
 
 **把目标织成任务，把任务落成产物。**
 
 TaskWeave 是用 TypeScript 实现的任务型 Agent。需求分析、测试设计、文档生成和代码修改共享 Agent Loop、工具、检查点和独立验收机制。
 
-当前版本 **v0.4.0-alpha.1**，面向本地单用户 CLI。支持固定工作流、节点依赖、串行调度、人工验收、返工传播和中断恢复。每个节点复用统一 Agent Loop，模型最终回答后独立检查产物和配置规则。v0.4 新增绑定上游 attempt 的结构化交接、带证据的任务摘要，以及显式选择、按需加载并绑定版本的本地 Skill。
+当前版本 **v0.5.0-alpha.1**，提供本地 CLI、只读 HTTP API 与 Web 工作台。支持固定工作流、节点依赖、串行调度、人工验收、返工传播和中断恢复。每个节点复用统一 Agent Loop，模型最终回答后独立检查产物和配置规则。v0.4 新增绑定上游 attempt 的结构化交接、带证据的任务摘要，以及显式选择、按需加载并绑定版本的本地 Skill。
+
+## 先看完整 Demo
+
+不需要模型 Key 或自己的工作区，播放需求 → 代码 → 测试 → 文档的完整轨迹：
+
+```bash
+npm ci --include=dev
+npm run web:demo:build
+npm run showcase:serve
+```
+
+在开发机打开 `http://127.0.0.1:4311/`。支持播放、暂停、调速、阶段跳转与倒退，涵盖验证失败、重试、问答、验收和返工。
+
+**这是固定脚本实际运行引擎后的 API 录制，不代表真实模型效果；确认由脚本代行，Token 为 0。** 静态展示不连接工作区、不触发任务执行。
+
+![TaskWeave 工作流与指标](docs/media/workflow.png)
+
+[Demo 与截图/录屏](docs/demo/README.md) · [五分钟讲稿](docs/demo/presentation.md) · [v0.5 alpha 发布说明](docs/releases/v0.5.0-alpha.1.md) · [公开源码交付](docs/open-source.md)
 
 ## 快速体验
 
@@ -42,15 +60,17 @@ npm start -- workflow accept <run-id> --workspace .demo/workflow \
 
 真实模型示例和用户验证配置位于 `examples/workflows/`。工作流支持依赖环检查、失败显式重试、传递下游过期标记、取消恢复、状态及事件查询。`workflow report` 只读已有记录，汇总当前及历史尝试的 Token、执行与等待时间、人工请求和操作次数，支持终端摘要及 JSON。详见 [工作流使用与恢复](docs/guides/workflows.md)。
 
-## v0.5 开发中：只读查询 API
+## 只读 Web 工作台
 
-已提供本地 Server，读取已有工作区的运行、任务、报告、事件与产物，为后续 Web 展示提供协议：
+已提供工作流/任务列表、依赖图、attempt 历史、运行指标、产物、验收、摘要、交接、Skill 与时间线。Web 和只读 API 由同一个本地 Server 提供：
 
 ```bash
-npm run server -- --workspace work/e2e-001 --port 4310
+npm ci --include=dev
+npm run web:build
+npm run server -- --workspace work/e2e-001 --port 4310 --web apps/web/dist
 ```
 
-在开发机运行后访问 `http://127.0.0.1:4310/api/v1/workspace`。无需模型密钥，不创建或修改工作区；本阶段提供 API，Web 页面在下一阶段实现。详见 [只读 API 使用说明](docs/guides/read-api.md)。
+在开发机运行后访问 `http://127.0.0.1:4310/#/workflows`（Web 构建要求 Node 20.19+，22 系列须 22.12+）。无需模型密钥，工作区必须已存在；验收、输入与返工继续通过 CLI 完成。省略 `--web` 保持 API-only。详见 [Web 使用说明](docs/guides/web.md) 与 [只读 API](docs/guides/read-api.md)。
 
 ## 上下文与 Skill
 
@@ -71,7 +91,7 @@ node --env-file=.env bin/taskweave.mjs run \
 
 程序在 `TASKWEAVE_BASE_URL` 后追加 `/chat/completions`。密钥只从进程环境读取，不写入快照。工作区文件片段会发送给所配置的模型服务，请选择适合这些资料的服务。
 
-当前自动化验证覆盖脚本 Provider 和模拟 HTTP 协议。**v0.4 的自动化验证没有调用真实模型，不宣称成功率或 Token 降幅。** 不同服务仍需分别验证兼容性。
+当前自动化验证覆盖脚本 Provider 和模拟 HTTP 协议。**自动化与固定脚本演示没有调用真实模型，不宣称成功率或 Token 降幅。** 不同服务仍需分别验证兼容性。
 
 ## 任务与工具
 
@@ -160,23 +180,24 @@ eval      --suite <评测集> [--demo] [--limit N]
 - 验证命令虽不使用 Shell、只接受固定参数，仍以当前用户权限执行，包括它读取或运行的模型生成代码。命令能访问哪些文件和网络由宿主权限决定；仅用于可信本地项目。
 - 子进程不继承模型密钥或完整环境；保留 PATH 等少数基础变量。命令输出会保存并可能发送给模型，不应输出敏感资料。
 - 上下文按字符预算保留目标、交接、所选 Skill、带证据摘要及近期完整工具轮次；没有向量检索或长期记忆。直接交接的产物在本 attempt 中只读，修改上游需显式返工。
-- 支持固定 DAG 的串行调度；没有并行多 Agent、分布式 Worker、Web UI、MCP 或 Git 自动提交。节点共享工作区，返工会标记旧结果过期，但不回滚文件；当前不提供产物快照隔离。
+- 支持固定 DAG 的串行调度；没有并行多 Agent、分布式 Worker、Web 执行控制、MCP 或 Git 自动提交。节点共享工作区，返工会标记旧结果过期，但不回滚文件；当前不提供产物快照隔离。
 - v0.1 快照仍可读取；已完成的旧任务不会被追溯标成“已验收”。未完成旧任务首次恢复时绑定 v0.2 配置，并采用新验收流程。
 
 ## 开发
 
 ```bash
 npm ci --include=dev
-npm test
+NODE_ENV=test npm test
 npm run typecheck
 npm run check:boundaries
 ```
 
-仓库使用 npm workspaces，安装和执行命令统一在仓库根目录进行，无需构建或启动服务。
+仓库使用 npm workspaces，安装和执行命令统一在仓库根目录进行。CLI 无需构建；Web 需先构建，再由只读 Server 托管。
 
 ```text
 apps/cli/             命令入口、参数解析、结果展示、依赖组装
-apps/server/          本地只读 HTTP API、查询与展示模型
+apps/server/          本地只读 HTTP API、查询、静态资源托管
+apps/web/             React 工作台、依赖图、详情、指标与轮询
 packages/contracts/   任务、工作流、事件、产物与验收协议
 packages/core/        任务、工作流、Agent Loop、工具、验证与能力接口
 packages/adapters/    模型 HTTP、本地文件、持久化和子进程实现
@@ -188,7 +209,7 @@ tests/e2e/            CLI 命令与完整工作流测试
 
 从 [Agent Loop](packages/core/src/agent/engine.ts) 开始阅读，再看 [工作流编排](packages/core/src/workflow/engine.ts)、[能力接口](packages/core/src/ports/index.ts) 和 [本地依赖组装](packages/adapters/src/runtime.ts)。包之间使用 `@taskweave/*` 公开入口，核心包通过接口使用基础设施。
 
-本次目录调整保持原有 CLI、`node --env-file=.env bin/taskweave.mjs` 入口及 `.taskweave/` v1 数据编码。TypeScript 调用方需要改用 workspace 包入口并显式注入 `localServices`，详见 [模块边界与迁移](docs/architecture/module-boundaries.md)。Server、独立 Runtime 和 Web 的引入条件见 [后续规划](docs/roadmap.md)。
+本次目录调整保持原有 CLI、`node --env-file=.env bin/taskweave.mjs` 入口及 `.taskweave/` v1 数据编码。TypeScript 调用方需要改用 workspace 包入口并显式注入 `localServices`，详见 [模块边界与迁移](docs/architecture/module-boundaries.md)。独立 Runtime、Demo 与后续演进见 [后续规划](docs/roadmap.md)。
 
 [架构与故障恢复](docs/architecture.md) · [任务示例](examples/tasks/use-cases.md) · [贡献说明](CONTRIBUTING.md) · [版本记录](CHANGELOG.md)
 

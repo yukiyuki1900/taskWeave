@@ -1,0 +1,11 @@
+{
+  "recording": "wf_8570f40f1b9649cfbbcef388",
+  "engine": "Chromium",
+  "browserVersion": "156.0.8078.4",
+  "transport": "pipe + in-memory static routes",
+  "listeningPorts": false,
+  "liveApiRequests": false,
+  "modelRequests": false,
+  "requestCount": 24,
+  "pageErrors": []
+}

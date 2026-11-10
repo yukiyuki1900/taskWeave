@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "checks": {
+    "normalize-smoke": {
+      "command": "node",
+      "args": [
+        "--input-type=module",
+        "-e",
+        "import assert from \"node:assert/strict\";const {normalizeTitle}=await import(\"./src/normalize-title.mjs\");assert.equal(normalizeTitle(\"  a   b  \"),\"a b\");assert.equal(normalizeTitle(\" \"),\"\");assert.equal(normalizeTitle(\"x\\ny\"),\"x y\");"
+      ],
+      "timeoutMs": 10000
+    },
+    "regression": {
+      "command": "node",
+      "args": [
+        "--test",
+        "tests/normalize-title.test.mjs"
+      ],
+      "timeoutMs": 30000
+    }
+  },
+  "skills": {
+    "doc-style": {
+      "path": "skills/doc-style/SKILL.md"
+    }
+  },
+  "context": {
+    "maxCharacters": 80000
+  }
+}

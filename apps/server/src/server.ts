@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createLocalReadApi } from './bootstrap.ts';
+import { createWebHandler } from './web.ts';
 
 /** The adapter can be exercised with in-memory request/response objects, without listen(). */
 export function nodeHandler(api: (request: Request) => Promise<Response>, origin: string) {
@@ -26,13 +27,13 @@ export function nodeHandler(api: (request: Request) => Promise<Response>, origin
   };
 }
 
-export interface ServerOptions { workspace: string; port?: number; name?: string }
+export interface ServerOptions { workspace: string; port?: number; name?: string; web?: string }
 export async function serve(options: ServerOptions) {
   const port = options.port ?? 4310;
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535) throw new Error('port 必须在 1 到 65535 之间');
   const origin = `http://127.0.0.1:${port}`;
   const api = await createLocalReadApi(options.workspace, { origin, name: options.name });
-  const handler = nodeHandler(api, origin);
+  const handler = nodeHandler(options.web ? await createWebHandler(api, options.web, origin) : api, origin);
   const server = createServer({ maxHeaderSize: 8192 }, (request, response) => { void handler(request, response); });
   server.requestTimeout = 15_000; server.headersTimeout = 10_000; server.keepAliveTimeout = 5_000;
   await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', resolve); });

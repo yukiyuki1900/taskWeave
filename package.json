@@ -1,7 +1,7 @@
 {
   "name": "taskweave-agent",
-  "version": "0.4.0-alpha.1",
-  "description": "TaskWeave · 织程 — a task-oriented agent for requirements, tests, documents and code",
+  "version": "0.5.0-alpha.1",
+  "description": "TaskWeave \u00b7 \u7ec7\u7a0b \u2014 a task-oriented agent for requirements, tests, documents and code",
   "type": "module",
   "private": true,
   "license": "MIT",
@@ -13,20 +13,29 @@
   },
   "scripts": {
     "start": "node bin/taskweave.mjs",
-    "demo": "node bin/taskweave.mjs run --demo --kind requirements --prompt '设计一个团队待办应用，支持负责人、截止时间和任务状态' --workspace .demo",
+    "demo": "node bin/taskweave.mjs run --demo --kind requirements --prompt '\u8bbe\u8ba1\u4e00\u4e2a\u56e2\u961f\u5f85\u529e\u5e94\u7528\uff0c\u652f\u6301\u8d1f\u8d23\u4eba\u3001\u622a\u6b62\u65f6\u95f4\u548c\u4efb\u52a1\u72b6\u6001' --workspace .demo",
     "workflow:demo": "node bin/taskweave.mjs workflow run --demo --file examples/workflows/demo.json --workspace .demo/workflow",
     "eval:demo": "node bin/taskweave.mjs eval --demo --suite examples/evaluation/demo.json --workspace .cache/evaluations",
     "eval": "node bin/taskweave.mjs eval --suite examples/evaluation/baseline.json --workspace .cache/evaluations",
     "test": "node --import tsx --test packages/*/test/*.test.ts tests/integration/*.test.ts tests/e2e/*.test.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && npm run typecheck --workspace @taskweave/web",
     "check:boundaries": "node scripts/check-boundaries.mjs",
-    "server": "node apps/server/bin/taskweave-server.mjs"
+    "server": "node apps/server/bin/taskweave-server.mjs",
+    "web:build": "npm run build --workspace @taskweave/web",
+    "showcase:record": "node --import tsx scripts/showcase/record.ts",
+    "web:demo:build": "npm run build --workspace @taskweave/web -- --mode demo",
+    "showcase:serve": "node --import tsx scripts/showcase/serve.ts",
+    "showcase:capture": "node --import tsx scripts/showcase/capture.ts",
+    "release:source": "node scripts/release/source.mjs"
   },
   "dependencies": {
     "tsx": "4.23.15"
   },
   "devDependencies": {
+    "@types/jsdom": "21.1.7",
     "@types/node": "20.19.43",
+    "jsdom": "26.1.0",
+    "playwright": "1.64.1",
     "typescript": "5.9.3"
   },
   "workspaces": [

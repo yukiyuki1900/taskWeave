@@ -1,6 +1,6 @@
 {
   "name": "@taskweave/core",
-  "version": "0.4.0-alpha.1",
+  "version": "0.5.0-alpha.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -11,6 +11,6 @@
     "./config": "./src/config/index.ts"
   },
   "dependencies": {
-    "@taskweave/contracts": "0.4.0-alpha.1"
+    "@taskweave/contracts": "0.5.0-alpha.1"
   }
 }

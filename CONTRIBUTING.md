@@ -1,6 +1,6 @@
 # 贡献说明
 
-使用 Node.js 20.19+。在根目录执行 `npm ci --include=dev` 后，可运行 `npm test`、`npm run typecheck` 和 `npm run check:boundaries`。项目以 TypeScript ESM 组织，内部 import 使用 `.ts` 后缀，通过 `tsx` 直接运行，无需构建或启动端口。
+使用 Node.js 20.19+。在根目录执行 `npm ci --include=dev` 后，可运行 `NODE_ENV=test npm test`、`npm run typecheck` 和 `npm run check:boundaries`。项目以 TypeScript ESM 组织，内部 import 使用 `.ts` 后缀，后端通过 `tsx` 直接运行；Web 使用 React/TypeScript，运行 `npm run web:build` 后由 Server 同源托管。Web 构建的 Node 22 系列要求 22.12+。测试通过内存 HTTP 与 JSDOM 进行，不需要监听端口。
 
 ## 修改原则
 
@@ -13,7 +13,8 @@
 
 ## 目录与依赖
 
-- 应用入口放 `apps/`；本地 CLI 的参数与输出归 `apps/cli`。
+- 应用入口放 `apps/`；CLI 的参数与输出归 `apps/cli`，只读查询与静态托管归 `apps/server`，Web 页面归 `apps/web`。
+- Web 仅通过 contracts 展示类型与同源 API 查询，不导入 core、adapters、Server 或 Node.js；浏览器类型检查和依赖检查应同时通过。
 - 业务规则放 `packages/core`，按 task、workflow、agent、tools、validation 等职责归位。
 - 模型、文件系统、存储与子进程实现放 `packages/adapters`；core 只依赖接口。
 - 跨边界序列化协议放 `packages/contracts`；内部检查点、模型消息与配置类型保留在 core。
@@ -34,3 +35,11 @@
 测试只在当前目录的 `.cache/` 下创建临时资料，并在结束后清理，不启动网络监听服务。提交 PR 时说明实际运行的检查、结果和未覆盖的外部依赖。
 
 `packages/core/test/runtime.test.ts` 仅注入内存存储、工作区与命令实现，验证核心无文件系统依赖，并覆盖验收、attempt 过期和命令未知结果的顺序。`scripts/check-boundaries.mjs` 使用 TypeScript AST 检查包依赖、公开入口及 core 的基础设施导入；这是仓库维护检查，不是操作系统沙箱。
+
+`tests/integration/web-display.test.ts` 通过真实工作区 API 与 JSDOM 验证 Web 导航、历史尝试、统计范围、文件变化、迟到请求与安全渲染；`web-static.test.ts` 验证同源资源托管与路径边界。JSDOM 不验证浏览器布局和 CSP，实际浏览器联调在开发机/CI 完成，步骤见 [Web 指南](docs/guides/web.md)。
+
+## Demo 与发布材料
+
+新增功能若影响展示协议，需同步 live 与 demo 两种数据源，重新录制固定示例并验证向后跳转不会混入未来的事件；不能遇到静态缺失就回退真实 API。运行 `npm run showcase:record -- --output apps/web/src/demo/recording.json` 会实际执行示例 Node 检查并覆盖指定录制文件，默认输出则留在 .cache。
+
+`npm run web:demo:build` 单独生成静态 Demo。Chromium 截图/录屏是可选验证，不随普通 npm test 启动；用 pipe 与内存路由捕获，禁止为此在公共开发环境开启监听端口。公开说明、截图与录屏必须标注固定脚本来源，不宣称真实模型表现。详见 [Demo](docs/demo/README.md) 与 [发布流程](docs/open-source.md)。

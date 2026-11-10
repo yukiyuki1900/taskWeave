@@ -1,7 +1,7 @@
 import { PRESETS } from '@taskweave/core';
 import type { Task } from '@taskweave/core/types';
 
-export const HELP = `TaskWeave · 织程  v0.4.0-alpha.1
+export const HELP = `TaskWeave  v0.5.0-alpha.1
 
 任务驱动的 Agent：需求、测试、文档与代码共享执行内核。
 
